@@ -24,7 +24,7 @@
       background: #dfe8ed;
     }
 
-    /* 지도는 HTML 전체 화면을 사용 */
+    /* 지도 영역 */
     #map {
       position: fixed;
       inset: 0;
@@ -33,137 +33,149 @@
       background: #dce7ed;
     }
 
-    /* OpenLayers 기본 컨트롤 위치를 오버레이와 겹치지 않게 이동 */
-    .ol-zoom {
-      top: auto;
-      left: 14px;
-      bottom: 14px;
-    }
-    .ol-attribution {
-      right: 8px;
-      bottom: 6px;
-    }
+    .ol-zoom { top: auto; left: 14px; bottom: 14px; }
+    .ol-attribution { right: 8px; bottom: 6px; }
 
-    /* 왼쪽 위: 평소에는 작은 탭, hover/focus 시 확장 */
-    .control-drawer {
+    /* 좌측 사이드바 버튼 그룹 컨테이너 */
+    .sidebar-nav {
       position: fixed;
       z-index: 20;
       top: 14px;
       left: 14px;
-      width: 54px;
-      max-height: calc(100% - 28px);
-      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* 공통 드로어 아이템 스타일 */
+    .control-drawer {
+      position: relative;
+      width: 50px;
+      height: 50px;
       border: 1px solid rgba(148, 163, 184, 0.42);
-      border-radius: 13px;
+      border-radius: 12px;
       background: rgba(255, 255, 255, 0.88);
-      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.11);
+      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.1);
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
-      transition: width 180ms ease, box-shadow 180ms ease, background 180ms ease;
+      transition: width 180ms ease, height 180ms ease, background 180ms ease, box-shadow 180ms ease;
+      overflow: hidden;
     }
+
     .control-drawer:hover,
     .control-drawer:focus-within {
-      width: min(430px, calc(100% - 28px));
       background: rgba(255, 255, 255, 0.97);
       box-shadow: 0 12px 34px rgba(15, 23, 42, 0.16);
     }
+
+    /* 1. 파일 설정 드로어 확장 */
+    #drawer-files:hover,
+    #drawer-files:focus-within {
+      width: min(410px, calc(100vw - 28px));
+      height: auto;
+      max-height: calc(100vh - 28px);
+    }
+
+    /* 2. 피처 리스트 드로어 확장 */
+    #drawer-features:hover,
+    #drawer-features:focus-within {
+      width: min(340px, calc(100vw - 28px));
+      height: auto;
+      max-height: calc(100vh - 90px);
+    }
+
+    /* 아이콘 스타일 */
     .drawer-handle {
       position: absolute;
       top: 0;
       left: 0;
-      width: 53px;
-      height: 100%;
-      min-height: 54px;
+      width: 50px;
+      height: 50px;
       display: flex;
-      align-items: flex-start;
+      align-items: center;
       justify-content: center;
-      padding-top: 15px;
-      font-size: 21px;
+      font-size: 20px;
       color: #475467;
       user-select: none;
-      pointer-events: none;
+      cursor: pointer;
     }
+
+    /* 드로어 내부 컨텐츠 패널 */
     .drawer-content {
-      width: 374px;
-      max-width: calc(100vw - 82px);
-      margin-left: 54px;
-      padding: 14px 14px 15px 0;
-      max-height: calc(100vh - 30px);
-      overflow-y: auto;
+      width: 340px;
+      margin-left: 50px;
+      padding: 14px 16px 16px 0;
       opacity: 0;
       transform: translateX(-8px);
       pointer-events: none;
       transition: opacity 120ms ease, transform 180ms ease;
     }
+
     .control-drawer:hover .drawer-content,
     .control-drawer:focus-within .drawer-content {
       opacity: 1;
       transform: translateX(0);
       pointer-events: auto;
     }
+
     .drawer-title {
       margin: 0 0 3px;
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 800;
       letter-spacing: -0.01em;
     }
     .drawer-subtitle {
-      margin: 0 0 12px;
+      margin: 0 0 10px;
       color: #667085;
       font-size: 11px;
-      line-height: 1.45;
+      line-height: 1.4;
     }
+
+    /* 파일 입력 UI */
     .inputs { display: grid; gap: 8px; }
     .file-input {
       border: 1px solid #e4e7ec;
-      border-radius: 9px;
-      padding: 9px 10px;
+      border-radius: 8px;
+      padding: 8px 10px;
       background: rgba(248, 250, 252, 0.82);
-      min-width: 0;
     }
     .file-input label {
       display: block;
-      margin-bottom: 6px;
-      font-size: 12px;
+      margin-bottom: 4px;
+      font-size: 11px;
       font-weight: 750;
     }
     .file-input small {
       display: block;
-      margin-top: 5px;
+      margin-top: 3px;
       color: #7a8391;
       font-size: 10px;
-      line-height: 1.4;
     }
-    input[type="file"] {
-      width: 100%;
-      min-width: 0;
-      font-size: 11px;
-    }
+    input[type="file"] { width: 100%; font-size: 11px; }
+
     .actions {
       display: flex;
       align-items: center;
-      gap: 9px;
+      gap: 8px;
       margin-top: 10px;
       flex-wrap: wrap;
     }
     button {
       border: 0;
-      border-radius: 8px;
-      min-height: 36px;
-      padding: 8px 12px;
+      border-radius: 7px;
+      min-height: 34px;
+      padding: 7px 11px;
       cursor: pointer;
       font-weight: 750;
-      font-size: 12px;
+      font-size: 11px;
       color: #fff;
       background: #1769aa;
     }
     button:hover { background: #125789; }
     button:disabled { opacity: .55; cursor: not-allowed; }
-    .secondary-button {
-      color: #475467;
-      background: #eef2f6;
-    }
+    .secondary-button { color: #475467; background: #eef2f6; }
     .secondary-button:hover { background: #e4e7ec; }
+
     #status {
       flex: 1 1 100%;
       color: #667085;
@@ -172,35 +184,83 @@
     }
     #status.error { color: #b42318; font-weight: 700; }
     #status.ok { color: #067647; font-weight: 700; }
+
     .stats {
       display: grid;
       grid-template-columns: repeat(5, minmax(0, 1fr));
-      gap: 5px;
-      margin-top: 9px;
+      gap: 4px;
+      margin-top: 8px;
     }
     .stat {
-      min-width: 0;
       border: 1px solid #edf0f3;
-      border-radius: 7px;
-      padding: 6px 5px;
+      border-radius: 6px;
+      padding: 5px 4px;
       background: #f8fafc;
       text-align: center;
     }
-    .stat .value { font-size: 14px; font-weight: 800; }
-    .stat .label {
-      margin-top: 2px;
-      color: #7a8391;
-      font-size: 8px;
-      line-height: 1.15;
+    .stat .value { font-size: 12px; font-weight: 800; }
+    .stat .label { color: #7a8391; font-size: 8px; }
+
+    /* 피처 목록 전용 UI 스타일 */
+    .feature-list-header {
+      font-size: 12px;
+      font-weight: 800;
+      color: #344054;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .feature-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      max-height: 280px;
+      overflow-y: auto;
+      border: 1px solid #eaecf0;
+      border-radius: 8px;
+      background: #ffffff;
+    }
+    .feature-item {
+      padding: 8px 10px;
+      font-size: 11px;
+      border-bottom: 1px solid #f2f4f7;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: background 120ms;
+    }
+    .feature-item:last-child { border-bottom: none; }
+    .feature-item:hover { background: #f8fafc; }
+    .feature-item.selected {
+      background: #eff8ff;
+      border-left: 3px solid #1769aa;
+      font-weight: 700;
+    }
+    .feature-item-code { font-weight: 700; color: #1d2939; }
+    .feature-item-type {
+      font-size: 9px;
+      color: #667085;
+      background: #f2f4f7;
+      padding: 2px 5px;
+      border-radius: 4px;
+    }
+    .no-features {
+      padding: 20px;
+      text-align: center;
+      color: #98a2b3;
+      font-size: 12px;
+      font-weight: 600;
     }
 
-    /* Feature 상세 정보: 지도 위에 떠 있는 우측 패널 */
+    /* 우측 피크/상세정보 패널 */
     .details {
       position: fixed;
       z-index: 18;
       top: 14px;
       right: 14px;
-      width: min(340px, calc(100% - 28px));
+      width: min(320px, calc(100% - 28px));
       max-height: calc(100% - 28px);
       overflow: auto;
       display: none;
@@ -213,42 +273,35 @@
       -webkit-backdrop-filter: blur(10px);
     }
     .details.open { display: block; }
-    .details-head {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 10px;
-      margin-bottom: 10px;
+    .details-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+    .details-head-actions { display: flex; align-items: center; gap: 6px; }
+    .focus-button {
+      min-height: 26px; width: 26px; padding: 0; border-radius: 6px;
+      color: #1769aa; background: #eef6fc; font-size: 14px;
+      display: inline-flex; align-items: center; justify-content: center;
     }
-    .details h2 { margin: 0 0 10px; font-size: 15px; }
-    .details-head h2 { margin: 0; }
+    .focus-button:hover { background: #dcecf8; }
+    .details h2 { margin: 0 0 10px; font-size: 14px; }
     .close-button {
-      min-height: 28px;
-      width: 28px;
-      padding: 0;
-      border-radius: 7px;
-      color: #667085;
-      background: #f2f4f7;
-      font-size: 17px;
-      line-height: 1;
+      min-height: 26px; width: 26px; padding: 0; border-radius: 6px;
+      color: #667085; background: #f2f4f7; font-size: 16px;
     }
     .close-button:hover { background: #e4e7ec; }
-    .hint { color: #667085; font-size: 12px; line-height: 1.5; }
-    .kv { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 7px 8px; font-size: 12px; }
+    .kv { display: grid; grid-template-columns: 80px minmax(0, 1fr); gap: 6px 8px; font-size: 11px; }
     .kv dt { color: #667085; }
     .kv dd { margin: 0; overflow-wrap: anywhere; }
-    .attr-list { margin: 10px 0 0; padding: 0; list-style: none; font-size: 11px; }
-    .attr-list li { padding: 7px 0; border-top: 1px solid #eef2f6; overflow-wrap: anywhere; }
-    .badge { display: inline-block; padding: 2px 6px; border-radius: 999px; background: #eef4ff; color: #3538cd; font-size: 10px; font-weight: 700; }
+    .attr-list { margin: 8px 0 0; padding: 0; list-style: none; font-size: 11px; }
+    .attr-list li { padding: 5px 0; border-top: 1px solid #eef2f6; }
+    .badge { display: inline-block; padding: 2px 5px; border-radius: 4px; background: #eef4ff; color: #3538cd; font-size: 10px; font-weight: 700; }
 
-    /* 매핑 진단은 필요할 때만 지도 위에 펼침 */
+    /* 하단 매핑 드로어 */
     .mapping-drawer {
       position: fixed;
       z-index: 19;
       left: 50%;
       bottom: 14px;
-      width: min(920px, calc(100% - 28px));
-      max-height: min(420px, calc(100% - 90px));
+      width: min(900px, calc(100% - 28px));
+      max-height: min(400px, calc(100% - 90px));
       display: none;
       transform: translateX(-50%);
       overflow: hidden;
@@ -258,85 +311,81 @@
       box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
     }
     .mapping-drawer.open { display: block; }
-    .mapping-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 10px 12px;
-      border-bottom: 1px solid #eaecf0;
-      font-size: 13px;
-      font-weight: 800;
-    }
-    .mapping-scroll { overflow: auto; max-height: 310px; }
+    .mapping-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid #eaecf0; font-size: 12px; font-weight: 800; }
+    .mapping-scroll { overflow: auto; max-height: 300px; }
     .mapping-drawer table { width: 100%; border-collapse: collapse; font-size: 11px; }
-    .mapping-drawer th, .mapping-drawer td { text-align: left; padding: 7px 8px; border-bottom: 1px solid #eef2f6; vertical-align: top; }
+    .mapping-drawer th, .mapping-drawer td { text-align: left; padding: 7px 8px; border-bottom: 1px solid #eef2f6; }
     .mapping-drawer th { position: sticky; top: 0; background: #f8fafc; color: #475467; }
-    .note { margin: 8px 12px 11px; color: #667085; font-size: 10px; line-height: 1.45; }
-
-    @media (max-width: 640px) {
-      .control-drawer:hover,
-      .control-drawer:focus-within { width: calc(100% - 20px); }
-      .control-drawer { top: 10px; left: 10px; max-height: calc(100% - 20px); }
-      .drawer-content { max-width: calc(100vw - 74px); }
-      .details { top: 10px; right: 10px; width: calc(100% - 20px); max-height: calc(100% - 20px); }
-      .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      .control-drawer, .drawer-content { transition: none; }
-    }
   </style>
 </head>
 <body>
   <div id="map" aria-label="S-100 OpenLayers 지도"></div>
 
-  <section class="control-drawer" aria-label="파일 선택 및 시각화 제어">
-    <div class="drawer-handle" aria-hidden="true">☰</div>
-    <div class="drawer-content">
-      <h1 class="drawer-title">S-100 FC/PC 경량 뷰어</h1>
-      <p class="drawer-subtitle">GML → FC → PC Rule → SVG. Lua와 XSLT에서 Point 심볼 매핑만 정적으로 추출합니다.</p>
+  <!-- 좌측 사이드바 버튼 영역 -->
+  <nav class="sidebar-nav">
+    
+    <!-- 1. 햄버거 메뉴 (파일 선택 창) -->
+    <section class="control-drawer" id="drawer-files" aria-label="파일 로드 패널">
+      <div class="drawer-handle" title="파일 및 설정">☰</div>
+      <div class="drawer-content">
+        <h1 class="drawer-title">S-100 FC/PC 경량 뷰어</h1>
+        <p class="drawer-subtitle">GML, FC, PC 파일을 선택하여 시각화합니다.</p>
 
-      <div class="inputs">
-        <div class="file-input">
-          <label for="sampleFile">1. Sample Data (.xml / .gml)</label>
-          <input type="file" id="sampleFile" accept=".xml,.gml,text/xml,application/xml">
-          <small>FC FeatureType 코드와 같은 요소를 feature로 인식합니다.</small>
+        <div class="inputs">
+          <div class="file-input">
+            <label for="sampleFile">1. Sample Data (.xml / .gml)</label>
+            <input type="file" id="sampleFile" accept=".xml,.gml,text/xml,application/xml">
+          </div>
+          <div class="file-input">
+            <label for="fcFile">2. Feature Catalogue (.xml)</label>
+            <input type="file" id="fcFile" accept=".xml,text/xml,application/xml">
+          </div>
+          <div class="file-input">
+            <label for="pcZip">3. Portrayal Catalogue (.zip)</label>
+            <input type="file" id="pcZip" accept=".zip,application/zip">
+          </div>
         </div>
-        <div class="file-input">
-          <label for="fcFile">2. Feature Catalogue (.xml)</label>
-          <input type="file" id="fcFile" accept=".xml,text/xml,application/xml">
-          <small>FeatureType 코드·이름·허용 primitive를 읽습니다.</small>
+
+        <div class="actions">
+          <button id="runButton" type="button">시각화 실행</button>
+          <button id="mappingButton" class="secondary-button" type="button">매핑 보기</button>
+          <span id="status" aria-live="polite">세 파일을 선택해 주세요.</span>
         </div>
-        <div class="file-input">
-          <label for="pcZip">3. Portrayal Catalogue (.zip)</label>
-          <input type="file" id="pcZip" accept=".zip,application/zip">
-          <small>portrayal_catalogue.xml, Rules/*.lua 또는 *.xsl, Symbols/*.svg를 직접 해제합니다.</small>
+
+        <div class="stats" id="stats" hidden>
+          <div class="stat"><div class="value" id="fcCount">0</div><div class="label">FC</div></div>
+          <div class="stat"><div class="value" id="pcSymbolCount">0</div><div class="label">SVG</div></div>
+          <div class="stat"><div class="value" id="featureCount">0</div><div class="label">Feature</div></div>
+          <div class="stat"><div class="value" id="svgAppliedCount">0</div><div class="label">Point</div></div>
+          <div class="stat"><div class="value" id="fallbackCount">0</div><div class="label">Fallback</div></div>
         </div>
       </div>
+    </section>
 
-      <div class="actions">
-        <button id="runButton" type="button">시각화 실행</button>
-        <button id="mappingButton" class="secondary-button" type="button">매핑 보기</button>
-        <span id="status" aria-live="polite">세 파일을 선택해 주세요.</span>
+    <!-- 2. 피처 목록 버튼 (📋 아이콘) -->
+    <section class="control-drawer" id="drawer-features" aria-label="피처 목록 패널">
+      <div class="drawer-handle" title="피처 목록">📋</div>
+      <div class="drawer-content">
+        <div class="feature-list-header">
+          <span>피처 목록 (Feature List)</span>
+          <span style="font-weight:400; font-size:10px; color:#667085;" id="featureListCount">0개</span>
+        </div>
+        <ul class="feature-list" id="featureList">
+          <li class="no-features">No features available</li>
+        </ul>
       </div>
+    </section>
 
-      <div class="stats" id="stats" hidden>
-        <div class="stat"><div class="value" id="fcCount">0</div><div class="label">FC FeatureType</div></div>
-        <div class="stat"><div class="value" id="pcSymbolCount">0</div><div class="label">PC SVG</div></div>
-        <div class="stat"><div class="value" id="featureCount">0</div><div class="label">GML Feature</div></div>
-        <div class="stat"><div class="value" id="svgAppliedCount">0</div><div class="label">SVG Point</div></div>
-        <div class="stat"><div class="value" id="fallbackCount">0</div><div class="label">Fallback</div></div>
-      </div>
-    </div>
-  </section>
+  </nav>
 
+  <!-- 오른쪽 상단 픽 리포트 패널 -->
   <aside class="details" id="details" aria-live="polite"></aside>
 
+  <!-- 매핑 결과 하단 패널 -->
   <section class="mapping-drawer" id="mappingDrawer" aria-label="FeatureType과 SVG 매핑 결과">
     <div class="mapping-head">
       <span>FeatureType → Rule → SVG 매핑 결과</span>
-      <button id="mappingClose" class="close-button" type="button" aria-label="매핑 결과 닫기">×</button>
+      <button id="mappingClose" class="close-button" type="button">×</button>
     </div>
     <div class="mapping-scroll">
       <table>
@@ -344,12 +393,13 @@
         <tbody id="mappingBody"><tr><td colspan="4">아직 실행하지 않았습니다.</td></tr></tbody>
       </table>
     </div>
-    <p class="note">※ Rule 엔진은 실행하지 않습니다. Lua는 <code>PointInstruction:</code>, XSLT는 <code>xsl:template match</code> + <code>symbolReference</code>만 정적으로 읽습니다. Curve/Surface는 단순 스타일 fallback입니다.</p>
   </section>
 
   <script>
     const xmlParser = new DOMParser();
     const objectUrls = [];
+    let currentLoadedResults = [];
+    let selectedFeature = null;
 
     const map = new ol.Map({
       target: 'map',
@@ -361,31 +411,93 @@
     const vectorLayer = new ol.layer.Vector({ source: vectorSource });
     map.addLayer(vectorLayer);
 
+    /* 기본 스타일 정의
+       렌더링 우선순위: Area < Line < Point/MultiPoint < Highlight
+       → 면 채움이 불투명해져도 포인트 심볼이 폴리곤 아래에 묻히지 않는다. */
+    const RENDER_Z = { area: 10, line: 20, point: 30, highlight: 100 };
+
     const fallbackPointStyle = new ol.style.Style({
       image: new ol.style.Circle({
         radius: 6,
         fill: new ol.style.Fill({ color: 'rgba(214, 63, 36, 0.9)' }),
         stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 })
-      })
+      }),
+      zIndex: RENDER_Z.point
     });
 
     const lineStyle = new ol.style.Style({
-      stroke: new ol.style.Stroke({ color: 'rgba(92, 96, 99, 0.52)', width: 1 })
+      stroke: new ol.style.Stroke({ color: 'rgba(92, 96, 99, 0.8)', width: 2 }),
+      zIndex: RENDER_Z.line
     });
 
     const areaStyle = new ol.style.Style({
-      stroke: new ol.style.Stroke({ color: 'rgba(92, 96, 99, 0.52)', width: 1 }),
-      fill: new ol.style.Fill({ color: 'rgba(255, 255, 255, 0.025)' })
+      stroke: new ol.style.Stroke({ color: 'rgba(92, 96, 99, 0.8)', width: 1 }),
+      fill: new ol.style.Fill({ color: 'rgba(23, 105, 170, 0.03)' }), // 예: 푸른톤 반투명 채우기
+      zIndex: RENDER_Z.area
     });
+
+    /* Highlight 스타일 */
+    function getHighlightStyle(feature) {
+      const geomType = feature.getGeometry().getType();
+
+      if (geomType === 'Point' || geomType === 'MultiPoint') {
+        const baseStyle = feature.get('_baseStyle') || fallbackPointStyle;
+        const highlightCircle = new ol.style.Style({
+          image: new ol.style.Circle({
+            radius: 14,
+            fill: new ol.style.Fill({ color: 'rgba(255, 153, 0, 0.25)' }),
+            stroke: new ol.style.Stroke({ color: '#ff6600', width: 2.5 })
+          }),
+          zIndex: RENDER_Z.highlight
+        });
+        return [highlightCircle, baseStyle];
+      } else if (geomType.includes('Line')) {
+        return new ol.style.Style({
+          stroke: new ol.style.Stroke({ color: '#ff6600', width: 4.5 }),
+          zIndex: RENDER_Z.highlight
+        });
+      } else {
+        return new ol.style.Style({
+          stroke: new ol.style.Stroke({ color: '#ff6600', width: 3.5 }),
+          fill: new ol.style.Fill({ color: 'rgba(255, 170, 0, 0.35)' }),
+          zIndex: RENDER_Z.highlight
+        });
+      }
+    }
 
     document.getElementById('runButton').addEventListener('click', runVisualizer);
     document.getElementById('mappingButton').addEventListener('click', () => document.getElementById('mappingDrawer').classList.toggle('open'));
     document.getElementById('mappingClose').addEventListener('click', () => document.getElementById('mappingDrawer').classList.remove('open'));
 
+    // 지도 클릭 시 피처 선택
     map.on('singleclick', event => {
       const picked = map.forEachFeatureAtPixel(event.pixel, feature => feature);
-      renderFeatureDetails(picked || null);
+      selectFeature(picked || null);
     });
+
+    function selectFeature(feature) {
+      if (selectedFeature) {
+        const originalStyle = selectedFeature.get('_baseStyle');
+        if (originalStyle) selectedFeature.setStyle(originalStyle);
+      }
+
+      selectedFeature = feature;
+
+      if (selectedFeature) {
+        selectedFeature.setStyle(getHighlightStyle(selectedFeature));
+      }
+
+      renderFeatureDetails(selectedFeature);
+      updateFeatureListSelection(selectedFeature);
+    }
+
+    function focusFeature(feature) {
+      if (!feature) return;
+      const geometry = feature.getGeometry();
+      if (!geometry) return;
+      const extent = geometry.getExtent();
+      map.getView().fit(extent, { padding: [100, 100, 100, 100], maxZoom: 16, duration: 300 });
+    }
 
     function setStatus(message, kind = '') {
       const el = document.getElementById('status');
@@ -396,7 +508,7 @@
     function parseXml(text, label) {
       const doc = xmlParser.parseFromString(text, 'text/xml');
       const error = doc.getElementsByTagName('parsererror')[0];
-      if (error) throw new Error(`${label} XML 파싱 실패: ${error.textContent.trim().slice(0, 180)}`);
+      if (error) throw new Error(`${label} XML 파싱 실패`);
       return doc;
     }
 
@@ -406,6 +518,21 @@
       }
       return '';
     }
+
+    /* ==========================================================================
+     * [CRITICAL / DO NOT REMOVE] S-100 PORTRAYAL CORE
+     * --------------------------------------------------------------------------
+     * 이 구간은 기존 S-129 / S-131 샘플에서 정상 동작이 확인된 핵심 로직이다.
+     * PC ZIP 파싱, Lua/XSLT Rule 연결, SVG 탐색, Geometry 해석, Point/MultiPoint
+     * 심볼 적용이 서로 연결되어 있으므로 일부만 단순화하거나 대체하지 말 것.
+     *
+     * IMPORTANT FOR FUTURE EDITS / AI PROMPTS:
+     * - 프롬프트에 명시적인 변경 지시가 없는 한 이 구간을 절대 삭제하지 말 것.
+     * - 함수 이름이 비슷하다는 이유로 축약 구현으로 교체하지 말 것.
+     * - FeatureType === rule filename 이라고 가정하지 말 것.
+     * - namespace / 대소문자 / 복수 XSLT template / Lua Point 구간 보정 로직을 유지할 것.
+     * - UI 기능(피처 목록, 패널, 선택 효과)을 추가할 때도 이 로직은 그대로 보존할 것.
+     * ========================================================================== */
 
     function parseFeatureCatalogue(xmlText) {
       const doc = parseXml(xmlText, 'FC');
@@ -429,6 +556,8 @@
       return map;
     }
 
+    /* [DO NOT SIMPLIFY] PC의 symbol/rule 메타데이터와 실제 ZIP 파일을 연결한다.
+       별도 명령이 없으면 삭제/축약/파일명 직접추정 방식으로 대체하지 말 것. */
     async function parsePortrayalZip(file) {
       const zip = await JSZip.loadAsync(file);
       const entries = Object.values(zip.files).filter(entry => !entry.dir);
@@ -511,6 +640,8 @@
         .replace(/--[^\r\n]*/g, '');
     }
 
+    /* [DO NOT SIMPLIFY] Lua 전체가 아니라 Point primitive 구간을 우선 해석한다.
+       주석 제거와 Point 구간 분리는 잘못된 심볼 후보 선택 방지에 필요하다. */
     function extractPointInstructionCandidates(luaText) {
       if (!luaText) return [];
       const text = stripLuaComments(luaText);
@@ -581,6 +712,8 @@
       return Array.from(new Set(candidates));
     }
 
+    /* [DO NOT SIMPLIFY] namespace, union match(|), predicate를 포함한 XSLT match를
+       FeatureType local name으로 정규화한다. 별도 명령 없이는 제거하지 말 것. */
     function extractXsltFeatureMappings(xslText, fileName) {
       if (!xslText) return [];
       let doc;
@@ -636,6 +769,7 @@
       return { fileName: '', engine: '' };
     }
 
+    /* [DO NOT SIMPLIFY] SVG 파일명 대소문자 차이와 symbol id → filename 매핑을 보정한다. */
     function chooseExistingSvg(candidates, pc, preferLast = false) {
       const ordered = preferLast ? [...candidates].reverse() : candidates;
       for (const symbolId of ordered) {
@@ -648,6 +782,8 @@
       return { symbolId: '', svgFile: '', svgUrl: '' };
     }
 
+    /* [CRITICAL / DO NOT REMOVE] FeatureType → Rule → Symbol → SVG 최종 연결부.
+       프롬프트에서 명시적으로 변경을 요구하지 않는 한 절대 삭제/단순화하지 말 것. */
     function resolvePointSymbol(featureCode, pc) {
       // XSLT: xsl:template match="FeatureType" 안의 symbolReference만 정적으로 추출.
       const xslt = pc.xsltFeatureRules.get(featureCode);
@@ -776,6 +912,8 @@
       return result;
     }
 
+    /* [DO NOT SIMPLIFY] Point/Curve/Surface/Multi* 타입을 실제 GML geometry 요소로 판별한다.
+       pos/posList 개수만으로 Polygon/Line을 추측하는 단순 구현으로 되돌리지 말 것. */
     function parseGeometry(featureEl) {
       const geomEl = findFirstGeometryElement(featureEl);
       if (!geomEl) return null;
@@ -829,6 +967,8 @@
       return attributes;
     }
 
+    /* [CRITICAL / DO NOT REMOVE] 실제 feature에 portrayal 결과를 적용하는 구간.
+       Point뿐 아니라 MultiPoint도 PC 심볼 적용 대상이다. */
     function parseSampleFeatures(xmlText, featureCatalogue, pc) {
       const doc = parseXml(xmlText, 'Sample Data');
       const allElements = Array.from(doc.getElementsByTagName('*'));
@@ -860,7 +1000,8 @@
                 anchor: [0.5, 0.5],
                 anchorXUnits: 'fraction',
                 anchorYUnits: 'fraction'
-              })
+              }),
+              zIndex: RENDER_Z.point
             }));
           } else {
             olFeature.setStyle(fallbackPointStyle);
@@ -870,6 +1011,10 @@
         } else {
           olFeature.setStyle(areaStyle);
         }
+
+        // 피처 목록/지도 선택 highlight 해제 시 원래 portrayal 스타일을 정확히 복원한다.
+        // [DO NOT REMOVE] UI 선택 기능을 수정하더라도 이 base style 저장은 유지할 것.
+        olFeature.set('_baseStyle', olFeature.getStyle());
 
         const meta = {
           id,
@@ -886,70 +1031,114 @@
       return results;
     }
 
+    /* 픽 리포트 (우측 상단) */
     function renderFeatureDetails(feature) {
       const box = document.getElementById('details');
       if (!feature) {
         box.classList.remove('open');
-        box.innerHTML = '';
         return;
       }
 
       const meta = feature.get('_meta');
-      if (!meta) return;
-      const attrEntries = Object.entries(meta.attributes);
-      const attrsHtml = attrEntries.length
-        ? `<ul class="attr-list">${attrEntries.map(([key, values]) => `<li><strong>${escapeHtml(key)}</strong>: ${escapeHtml(values.join(', '))}</li>`).join('')}</ul>`
-        : '<p class="hint">읽힌 비공간 속성이 없습니다.</p>';
-
       box.innerHTML = `
         <div class="details-head">
-          <h2>${escapeHtml(meta.name)}</h2>
-          <button class="close-button" id="detailsClose" type="button" aria-label="Feature 정보 닫기">×</button>
+          <div>
+            <span style="font-size:10px; font-weight:800; color:#ff6600;">SELECTED FEATURE</span>
+            <h2 style="margin-top:2px;">${escapeHtml(meta.name)}</h2>
+          </div>
+          <div class="details-head-actions">
+            <button class="focus-button" id="detailsFocus" type="button" title="이 피처로 확대" aria-label="이 피처로 확대">
+              <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="11" cy="11" r="6" fill="none" stroke="currentColor" stroke-width="2"></circle>
+                <path d="M16 16l5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+              </svg>
+            </button>
+            <button class="close-button" id="detailsClose" type="button">×</button>
+          </div>
         </div>
         <dl class="kv">
-          <dt>FeatureType</dt><dd><span class="badge">${escapeHtml(meta.code)}</span></dd>
-          <dt>gml:id</dt><dd>${escapeHtml(meta.id || '-')}</dd>
+          <dt>Code</dt><dd><span class="badge">${escapeHtml(meta.code)}</span></dd>
+          <dt>gml:id</dt><dd><strong>${escapeHtml(meta.id)}</strong></dd>
           <dt>Geometry</dt><dd>${escapeHtml(meta.geometryType)}</dd>
-          <dt>FC primitive</dt><dd>${escapeHtml(meta.permittedPrimitives.join(', ') || '-')}</dd>
-          <dt>PC Rule</dt><dd>${escapeHtml((meta.portrayal.engine ? meta.portrayal.engine + ' · ' : '') + (meta.portrayal.ruleFile || '-'))}</dd>
+          <dt>Rule File</dt><dd>${escapeHtml(meta.portrayal.ruleFile || '-')}</dd>
           <dt>Symbol ID</dt><dd>${escapeHtml(meta.portrayal.symbolId || '-')}</dd>
-          <dt>SVG file</dt><dd>${escapeHtml(meta.portrayal.svgFile || '-')}</dd>
-          <dt>후보</dt><dd>${escapeHtml(meta.portrayal.candidates.join(', ') || '-')}</dd>
+          <dt>SVG File</dt><dd>${escapeHtml(meta.portrayal.svgFile || '-')}</dd>
         </dl>
-        <h2 style="margin-top:18px;">GML 속성</h2>
-        ${attrsHtml}
       `;
       box.classList.add('open');
-      document.getElementById('detailsClose').addEventListener('click', () => renderFeatureDetails(null));
+      document.getElementById('detailsFocus').addEventListener('click', () => focusFeature(feature));
+      document.getElementById('detailsClose').addEventListener('click', () => selectFeature(null));
+    }
+
+    /* 피처 목록 패널 UI 갱신 (📋 아이콘 창)
+       NOTE: 이 UI 기능은 위 S-100 PORTRAYAL CORE와 독립적이다.
+       목록 기능을 수정할 때 portrayal/rule/svg/geometry 핵심 로직을 삭제하거나 단순화하지 말 것. */
+    function renderFeatureList(results) {
+      const listEl = document.getElementById('featureList');
+      const countEl = document.getElementById('featureListCount');
+
+      currentLoadedResults = results;
+      countEl.textContent = `${results.length}개`;
+
+      if (!results || results.length === 0) {
+        listEl.innerHTML = '<li class="no-features">No features available</li>';
+        return;
+      }
+
+      listEl.innerHTML = results.map((res, index) => `
+        <li class="feature-item" data-index="${index}">
+          <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+            <span class="feature-item-code">${escapeHtml(res.meta.code)}</span>
+            <span style="font-size:10px; color:#667085; margin-left:4px;">(${escapeHtml(res.meta.id)})</span>
+          </div>
+          <span class="feature-item-type">${escapeHtml(res.meta.geometryType)}</span>
+        </li>
+      `).join('');
+
+      listEl.querySelectorAll('.feature-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const idx = parseInt(item.getAttribute('data-index'), 10);
+          if (currentLoadedResults[idx]) {
+            selectFeature(currentLoadedResults[idx].olFeature);
+          }
+        });
+      });
+    }
+
+    function updateFeatureListSelection(selectedOlFeature) {
+      document.querySelectorAll('.feature-item').forEach(item => item.classList.remove('selected'));
+      if (!selectedOlFeature) return;
+
+      const idx = currentLoadedResults.findIndex(r => r.olFeature === selectedOlFeature);
+      if (idx !== -1) {
+        const activeItem = document.querySelector(`.feature-item[data-index="${idx}"]`);
+        if (activeItem) {
+          activeItem.classList.add('selected');
+          activeItem.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
+      }
     }
 
     function escapeHtml(value) {
-      return String(value)
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;')
-        .replaceAll('"', '&quot;')
-        .replaceAll("'", '&#039;');
+      return String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
     }
 
     function renderMapping(results) {
       const body = document.getElementById('mappingBody');
       const unique = new Map();
-      for (const result of results) {
-        if (!unique.has(result.meta.code)) unique.set(result.meta.code, result.meta);
-      }
+      results.forEach(r => unique.set(r.meta.code, r.meta));
 
       if (!unique.size) {
-        body.innerHTML = '<tr><td colspan="4">표시 가능한 feature를 찾지 못했습니다.</td></tr>';
+        body.innerHTML = '<tr><td colspan="4">표시할 피처가 없습니다.</td></tr>';
         return;
       }
 
-      body.innerHTML = Array.from(unique.values()).sort((a, b) => a.code.localeCompare(b.code)).map(meta => `
+      body.innerHTML = Array.from(unique.values()).map(meta => `
         <tr>
-          <td><strong>${escapeHtml(meta.code)}</strong><br><span style="color:#667085">${escapeHtml(meta.name)}</span></td>
-          <td>${escapeHtml((meta.portrayal.engine ? meta.portrayal.engine + ' · ' : '') + (meta.portrayal.ruleFile || '-'))}</td>
+          <td><strong>${escapeHtml(meta.code)}</strong></td>
+          <td>${escapeHtml(meta.portrayal.ruleFile || '-')}</td>
           <td>${escapeHtml(meta.portrayal.candidates.join(', ') || '-')}</td>
-          <td>${escapeHtml(meta.portrayal.svgFile || (meta.geometryType === 'Point' || meta.geometryType === 'MultiPoint' ? 'fallback circle' : 'simple line/area'))}</td>
+          <td>${escapeHtml(meta.portrayal.svgFile || 'fallback')}</td>
         </tr>
       `).join('');
     }
@@ -961,37 +1150,36 @@
       const button = document.getElementById('runButton');
 
       if (!sampleFile || !fcFile || !pcZipFile) {
-        setStatus('Sample Data, FC, PC ZIP 세 파일을 모두 선택해 주세요.', 'error');
+        setStatus('3개 파일을 모두 선택하세요.', 'error');
         return;
       }
 
       button.disabled = true;
-      setStatus('FC와 PC를 해석하는 중...');
+      setStatus('파싱 중...');
       vectorSource.clear();
-      renderFeatureDetails(null);
+      selectFeature(null);
 
+      // 이전 실행에서 만든 Blob URL을 정리한다. 새 PC를 읽은 뒤의 SVG URL은 새로 생성된다.
       for (const url of objectUrls.splice(0)) URL.revokeObjectURL(url);
 
       try {
         const [sampleText, fcText] = await Promise.all([sampleFile.text(), fcFile.text()]);
         const featureCatalogue = parseFeatureCatalogue(fcText);
         if (!featureCatalogue.size) throw new Error('FC에서 S100_FC_FeatureType을 찾지 못했습니다.');
-
         const pc = await parsePortrayalZip(pcZipFile);
-        setStatus('GML feature와 PC rule을 연결하는 중...');
 
         const results = parseSampleFeatures(sampleText, featureCatalogue, pc);
         let extent = ol.extent.createEmpty();
-        let svgApplied = 0;
-        let fallback = 0;
+        let svgApplied = 0, fallback = 0;
 
-        for (const result of results) {
-          vectorSource.addFeature(result.olFeature);
-          ol.extent.extend(extent, result.olFeature.getGeometry().getExtent());
-          const pointLike = result.meta.geometryType === 'Point' || result.meta.geometryType === 'MultiPoint';
-          if (pointLike && result.meta.portrayal.svgUrl) svgApplied++;
-          else if (pointLike) fallback++;
-        }
+        results.forEach(r => {
+          vectorSource.addFeature(r.olFeature);
+          ol.extent.extend(extent, r.olFeature.getGeometry().getExtent());
+          const pointLike = r.meta.geometryType === 'Point' || r.meta.geometryType === 'MultiPoint';
+          if (pointLike) {
+            if (r.meta.portrayal.svgUrl) svgApplied++; else fallback++;
+          }
+        });
 
         document.getElementById('fcCount').textContent = featureCatalogue.size;
         document.getElementById('pcSymbolCount').textContent = pc.symbolFiles.size;
@@ -999,17 +1187,18 @@
         document.getElementById('svgAppliedCount').textContent = svgApplied;
         document.getElementById('fallbackCount').textContent = fallback;
         document.getElementById('stats').hidden = false;
+
         renderMapping(results);
+        renderFeatureList(results); // 피처 리스트 패널 업데이트
 
         if (!ol.extent.isEmpty(extent)) {
-          map.getView().fit(extent, { padding: [48, 48, 48, 48], duration: 500, maxZoom: 17 });
-          setStatus(`완료: ${results.length}개 feature · PC ${Array.from(pc.engines).join(' + ') || 'Rule 없음'}`, 'ok');
+          map.getView().fit(extent, { padding: [50, 50, 50, 50], duration: 500 });
+          setStatus('완료', 'ok');
         } else {
-          throw new Error('FC FeatureType과 일치하면서 해석 가능한 GML geometry를 찾지 못했습니다.');
+          throw new Error('유효한 공간 데이터가 없습니다.');
         }
       } catch (error) {
-        console.error(error);
-        setStatus(error.message || String(error), 'error');
+        setStatus(error.message, 'error');
       } finally {
         button.disabled = false;
       }
