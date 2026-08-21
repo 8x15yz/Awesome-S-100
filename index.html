@@ -1,182 +1,1019 @@
 <!DOCTYPE html>
-<html lang="ko" data-bs-theme="light">
+<html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>S-100 표준 문서</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>S-100 FC/PC 경량 뷰어 · Lua + XSLT MVP</title>
+
+  <!-- OpenLayers -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v7.3.0/ol.css">
+  <script src="https://cdn.jsdelivr.net/npm/ol@v7.3.0/dist/ol.js"></script>
+
+  <!-- PC ZIP 해제 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
   <style>
-    :root {
-      --primary: #1a73e8;
-      --primary-dark: #1558b0;
-      --sidebar-width: 260px;
-      --navbar-height: 56px;
+    * { box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #1f2937;
+      background: #dfe8ed;
     }
 
-    body {
-      font-family: "Pretendard", "Noto Sans KR", "Segoe UI", system-ui, sans-serif;
-      background: #f8f9fa;
+    /* 지도는 HTML 전체 화면을 사용 */
+    #map {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      background: #dce7ed;
     }
 
-    .td-navbar { background:#fff; height:var(--navbar-height); position:sticky; top:0; z-index:1030; box-shadow:0 1px 4px rgba(0,0,0,.12); }
-    .navbar-brand__name { color:var(--primary); font-weight:600; font-size:1.1rem; }
-    .nav-link-lang { color:var(--primary)!important; font-weight:500; border:1px solid var(--primary); border-radius:4px; padding:3px 10px!important; transition:background .15s; }
-    .nav-link-lang:hover { background:#e8f0fe; }
-    .nav-link-lang.current { background:#e8f0fe; border-color:var(--primary-dark); color:var(--primary-dark)!important; font-weight:700; }
+    /* OpenLayers 기본 컨트롤 위치를 오버레이와 겹치지 않게 이동 */
+    .ol-zoom {
+      top: auto;
+      left: 14px;
+      bottom: 14px;
+    }
+    .ol-attribution {
+      right: 8px;
+      bottom: 6px;
+    }
 
-    .td-outer { display:flex; min-height:calc(100vh - var(--navbar-height)); }
+    /* 왼쪽 위: 평소에는 작은 탭, hover/focus 시 확장 */
+    .control-drawer {
+      position: fixed;
+      z-index: 20;
+      top: 14px;
+      left: 14px;
+      width: 54px;
+      max-height: calc(100% - 28px);
+      overflow: hidden;
+      border: 1px solid rgba(148, 163, 184, 0.42);
+      border-radius: 13px;
+      background: rgba(255, 255, 255, 0.88);
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.11);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      transition: width 180ms ease, box-shadow 180ms ease, background 180ms ease;
+    }
+    .control-drawer:hover,
+    .control-drawer:focus-within {
+      width: min(430px, calc(100% - 28px));
+      background: rgba(255, 255, 255, 0.97);
+      box-shadow: 0 12px 34px rgba(15, 23, 42, 0.16);
+    }
+    .drawer-handle {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 53px;
+      height: 100%;
+      min-height: 54px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 15px;
+      font-size: 21px;
+      color: #475467;
+      user-select: none;
+      pointer-events: none;
+    }
+    .drawer-content {
+      width: 374px;
+      max-width: calc(100vw - 82px);
+      margin-left: 54px;
+      padding: 14px 14px 15px 0;
+      max-height: calc(100vh - 30px);
+      overflow-y: auto;
+      opacity: 0;
+      transform: translateX(-8px);
+      pointer-events: none;
+      transition: opacity 120ms ease, transform 180ms ease;
+    }
+    .control-drawer:hover .drawer-content,
+    .control-drawer:focus-within .drawer-content {
+      opacity: 1;
+      transform: translateX(0);
+      pointer-events: auto;
+    }
+    .drawer-title {
+      margin: 0 0 3px;
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+    }
+    .drawer-subtitle {
+      margin: 0 0 12px;
+      color: #667085;
+      font-size: 11px;
+      line-height: 1.45;
+    }
+    .inputs { display: grid; gap: 8px; }
+    .file-input {
+      border: 1px solid #e4e7ec;
+      border-radius: 9px;
+      padding: 9px 10px;
+      background: rgba(248, 250, 252, 0.82);
+      min-width: 0;
+    }
+    .file-input label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 12px;
+      font-weight: 750;
+    }
+    .file-input small {
+      display: block;
+      margin-top: 5px;
+      color: #7a8391;
+      font-size: 10px;
+      line-height: 1.4;
+    }
+    input[type="file"] {
+      width: 100%;
+      min-width: 0;
+      font-size: 11px;
+    }
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+    button {
+      border: 0;
+      border-radius: 8px;
+      min-height: 36px;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-weight: 750;
+      font-size: 12px;
+      color: #fff;
+      background: #1769aa;
+    }
+    button:hover { background: #125789; }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+    .secondary-button {
+      color: #475467;
+      background: #eef2f6;
+    }
+    .secondary-button:hover { background: #e4e7ec; }
+    #status {
+      flex: 1 1 100%;
+      color: #667085;
+      font-size: 11px;
+      line-height: 1.4;
+    }
+    #status.error { color: #b42318; font-weight: 700; }
+    #status.ok { color: #067647; font-weight: 700; }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 5px;
+      margin-top: 9px;
+    }
+    .stat {
+      min-width: 0;
+      border: 1px solid #edf0f3;
+      border-radius: 7px;
+      padding: 6px 5px;
+      background: #f8fafc;
+      text-align: center;
+    }
+    .stat .value { font-size: 14px; font-weight: 800; }
+    .stat .label {
+      margin-top: 2px;
+      color: #7a8391;
+      font-size: 8px;
+      line-height: 1.15;
+    }
 
-    .td-sidebar { width:var(--sidebar-width); min-width:var(--sidebar-width); background:#fff; border-right:1px solid #dee2e6; padding:1.5rem 0; position:sticky; top:var(--navbar-height); height:calc(100vh - var(--navbar-height)); overflow-y:auto; }
-    .td-sidebar-nav a { display:block; padding:.35rem 1.25rem; color:#495057; text-decoration:none; font-size:.9rem; border-left:3px solid transparent; transition:all .12s; }
-    .td-sidebar-nav a:hover { color:var(--primary); background:#f0f4ff; border-left-color:var(--primary); }
-    .td-sidebar-nav a.active { color:var(--primary); font-weight:600; border-left-color:var(--primary); background:#e8f0fe; }
-    .sidebar-section-title { font-size:.7rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#6c757d; padding:1rem 1.25rem .3rem; }
+    /* Feature 상세 정보: 지도 위에 떠 있는 우측 패널 */
+    .details {
+      position: fixed;
+      z-index: 18;
+      top: 14px;
+      right: 14px;
+      width: min(340px, calc(100% - 28px));
+      max-height: calc(100% - 28px);
+      overflow: auto;
+      display: none;
+      padding: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.42);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.96);
+      box-shadow: 0 10px 28px rgba(15, 23, 42, 0.14);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+    .details.open { display: block; }
+    .details-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .details h2 { margin: 0 0 10px; font-size: 15px; }
+    .details-head h2 { margin: 0; }
+    .close-button {
+      min-height: 28px;
+      width: 28px;
+      padding: 0;
+      border-radius: 7px;
+      color: #667085;
+      background: #f2f4f7;
+      font-size: 17px;
+      line-height: 1;
+    }
+    .close-button:hover { background: #e4e7ec; }
+    .hint { color: #667085; font-size: 12px; line-height: 1.5; }
+    .kv { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 7px 8px; font-size: 12px; }
+    .kv dt { color: #667085; }
+    .kv dd { margin: 0; overflow-wrap: anywhere; }
+    .attr-list { margin: 10px 0 0; padding: 0; list-style: none; font-size: 11px; }
+    .attr-list li { padding: 7px 0; border-top: 1px solid #eef2f6; overflow-wrap: anywhere; }
+    .badge { display: inline-block; padding: 2px 6px; border-radius: 999px; background: #eef4ff; color: #3538cd; font-size: 10px; font-weight: 700; }
 
-    .td-main { flex:1; padding:2.5rem 3rem; max-width:900px; }
+    /* 매핑 진단은 필요할 때만 지도 위에 펼침 */
+    .mapping-drawer {
+      position: fixed;
+      z-index: 19;
+      left: 50%;
+      bottom: 14px;
+      width: min(920px, calc(100% - 28px));
+      max-height: min(420px, calc(100% - 90px));
+      display: none;
+      transform: translateX(-50%);
+      overflow: hidden;
+      border: 1px solid rgba(148, 163, 184, 0.42);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.97);
+      box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
+    }
+    .mapping-drawer.open { display: block; }
+    .mapping-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      border-bottom: 1px solid #eaecf0;
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .mapping-scroll { overflow: auto; max-height: 310px; }
+    .mapping-drawer table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .mapping-drawer th, .mapping-drawer td { text-align: left; padding: 7px 8px; border-bottom: 1px solid #eef2f6; vertical-align: top; }
+    .mapping-drawer th { position: sticky; top: 0; background: #f8fafc; color: #475467; }
+    .note { margin: 8px 12px 11px; color: #667085; font-size: 10px; line-height: 1.45; }
 
-    .pageinfo-primary { background:#e8f0fe; border-left:4px solid var(--primary); border-radius:4px; padding:1rem 1.25rem; margin-bottom:1.75rem; color:#1a1a1a; }
+    @media (max-width: 640px) {
+      .control-drawer:hover,
+      .control-drawer:focus-within { width: calc(100% - 20px); }
+      .control-drawer { top: 10px; left: 10px; max-height: calc(100% - 20px); }
+      .drawer-content { max-width: calc(100vw - 74px); }
+      .details { top: 10px; right: 10px; width: calc(100% - 20px); max-height: calc(100% - 20px); }
+      .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
 
-    .standard-card { background:#fff; border:1px solid #dee2e6; border-radius:8px; padding:1.5rem; margin-bottom:1.25rem; transition:box-shadow .15s, border-color .15s; }
-    .standard-card:hover { box-shadow:0 4px 16px rgba(26,115,232,.12); border-color:var(--primary); }
-    .standard-card h3 { font-size:1.05rem; font-weight:600; margin-bottom:.4rem; color:var(--primary); }
-    .standard-card h3 a { color:inherit; text-decoration:none; }
-    .standard-card .badge-std { background:#e8f0fe; color:var(--primary-dark); font-size:.72rem; font-weight:600; padding:2px 8px; border-radius:20px; margin-right:6px; }
-    .standard-card p { font-size:.9rem; color:#555; margin-bottom:.6rem; }
-    .placeholder-notice { font-size:.8rem; color:#888; font-style:italic; }
-
-    .section-index { display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:1rem; margin-top:1.5rem; }
-    .section-index .entry { background:#fff; border:1px solid #dee2e6; border-radius:6px; padding:1rem; }
-    .section-index .entry h5 a { color:var(--primary); text-decoration:none; font-size:.95rem; }
-
-    .td-footer { background:#343a40; color:rgba(255,255,255,.7); padding:1.25rem 2rem; font-size:.82rem; }
-    .td-footer a { color:rgba(255,255,255,.6); }
-
-    @media(max-width:767px){ .td-sidebar{display:none;} .td-main{padding:1.5rem 1.25rem;} }
+    @media (prefers-reduced-motion: reduce) {
+      .control-drawer, .drawer-content { transition: none; }
+    }
   </style>
 </head>
 <body>
+  <div id="map" aria-label="S-100 OpenLayers 지도"></div>
 
-<nav class="td-navbar navbar navbar-expand-md">
-  <div class="container-fluid px-3">
-    <a class="navbar-brand d-flex align-items-center gap-2" href="index.html">
-<span class="navbar-brand__name">S-100 표준 문서</span>
-    </a>
-    <div class="ms-auto d-flex align-items-center gap-3">
-      <span style="color:#aaa;font-size:.85rem;">🌐</span>
-      <a class="nav-link-lang" href="index_en.html">English</a>
-      <a class="nav-link-lang current" href="index.html"><strong>한국어</strong></a>
+  <section class="control-drawer" aria-label="파일 선택 및 시각화 제어">
+    <div class="drawer-handle" aria-hidden="true">☰</div>
+    <div class="drawer-content">
+      <h1 class="drawer-title">S-100 FC/PC 경량 뷰어</h1>
+      <p class="drawer-subtitle">GML → FC → PC Rule → SVG. Lua와 XSLT에서 Point 심볼 매핑만 정적으로 추출합니다.</p>
+
+      <div class="inputs">
+        <div class="file-input">
+          <label for="sampleFile">1. Sample Data (.xml / .gml)</label>
+          <input type="file" id="sampleFile" accept=".xml,.gml,text/xml,application/xml">
+          <small>FC FeatureType 코드와 같은 요소를 feature로 인식합니다.</small>
+        </div>
+        <div class="file-input">
+          <label for="fcFile">2. Feature Catalogue (.xml)</label>
+          <input type="file" id="fcFile" accept=".xml,text/xml,application/xml">
+          <small>FeatureType 코드·이름·허용 primitive를 읽습니다.</small>
+        </div>
+        <div class="file-input">
+          <label for="pcZip">3. Portrayal Catalogue (.zip)</label>
+          <input type="file" id="pcZip" accept=".zip,application/zip">
+          <small>portrayal_catalogue.xml, Rules/*.lua 또는 *.xsl, Symbols/*.svg를 직접 해제합니다.</small>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="runButton" type="button">시각화 실행</button>
+        <button id="mappingButton" class="secondary-button" type="button">매핑 보기</button>
+        <span id="status" aria-live="polite">세 파일을 선택해 주세요.</span>
+      </div>
+
+      <div class="stats" id="stats" hidden>
+        <div class="stat"><div class="value" id="fcCount">0</div><div class="label">FC FeatureType</div></div>
+        <div class="stat"><div class="value" id="pcSymbolCount">0</div><div class="label">PC SVG</div></div>
+        <div class="stat"><div class="value" id="featureCount">0</div><div class="label">GML Feature</div></div>
+        <div class="stat"><div class="value" id="svgAppliedCount">0</div><div class="label">SVG Point</div></div>
+        <div class="stat"><div class="value" id="fallbackCount">0</div><div class="label">Fallback</div></div>
+      </div>
     </div>
-  </div>
-</nav>
+  </section>
 
-<div class="td-outer">
-  <aside class="td-sidebar d-none d-md-block">
-    <nav class="td-sidebar-nav">
-      <div class="sidebar-section-title">문서</div>
-      <a href="index.html" class="active">개요</a>
-      <div class="sidebar-section-title">표준 목록</div>
-      <a href="s102_ko.html">S-102 — 수심 표면</a>
-      <a href="s124_ko.html">S-124 — 항행 경고</a>
-      <a href="s201_ko.html">S-201 — 항로표지 (AtoN)</a>
-      <a href="s158_ko.html">S-158 — 항만 및 수로</a>
-      <a href="s158-100_ko.html">S-158(100) — 항만 (S-100 기반)</a>
-      <a href="s158-98_ko.html">S-158·98 — 항만 (S-98 기반)</a>
-    </nav>
-  </aside>
+  <aside class="details" id="details" aria-live="polite"></aside>
 
-  <main class="td-main">
-    <nav aria-label="breadcrumb" class="mb-3">
-      <ol class="breadcrumb" style="font-size:.85rem;">
-        <li class="breadcrumb-item active" aria-current="page">문서</li>
-      </ol>
-    </nav>
-
-    <h1 class="mb-3">S-100 표준 문서</h1>
-
-    <div class="pageinfo-primary">
-      <p class="mb-0">S-100 표준 문서 포털에 오신 것을 환영합니다. 이 포털은 IHO 범용 수로 데이터 모델 기반 제품 사양의 참조 허브입니다.</p>
+  <section class="mapping-drawer" id="mappingDrawer" aria-label="FeatureType과 SVG 매핑 결과">
+    <div class="mapping-head">
+      <span>FeatureType → Rule → SVG 매핑 결과</span>
+      <button id="mappingClose" class="close-button" type="button" aria-label="매핑 결과 닫기">×</button>
     </div>
-
-    <p>
-      <strong>S-100</strong>은 국제수로기구(IHO)가 발행한 범용 수로 데이터 모델로, 차세대 디지털 해양 표준의 기반이 됩니다.
-      이 포털은 현대 전자해도(ENC) 시스템, 항만 관리, 해양 안전 서비스에서 사용되는
-      S-100 계열 제품 사양 일체를 문서화합니다.
-    </p>
-
-    <p>
-      각 표준은 피처 카탈로그, 묘사 카탈로그, GML 스키마를 정의하여
-      선박·항만청·해양 안전기관 간 상호 운용 가능한 지리공간 해양 데이터 교환을 지원합니다.
-    </p>
-
-    <hr class="my-4" />
-
-    <div class="standard-card" id="s-102">
-      <span class="badge-std">S-102</span>
-      <h3><a href="s102_ko.html">수심 표면 (Bathymetric Surface)</a></h3>
-      <p>S-102는 수심 표면 데이터의 콘텐츠 모델과 인코딩을 규정합니다. ENC 데이터를 보완하는 고해상도 수심 정보를 제공하며, 항해 계획 시스템 및 자율 선박 항법에서 활용되는 격자 기반 수심 모델을 지원합니다.</p>
-      <p class="placeholder-notice"><i class="fa-solid fa-circle-info me-1"></i>세부 내용은 곧 추가될 예정입니다.</p>
+    <div class="mapping-scroll">
+      <table>
+        <thead><tr><th>FeatureType</th><th>Rule</th><th>심볼 후보</th><th>선택 SVG</th></tr></thead>
+        <tbody id="mappingBody"><tr><td colspan="4">아직 실행하지 않았습니다.</td></tr></tbody>
+      </table>
     </div>
+    <p class="note">※ Rule 엔진은 실행하지 않습니다. Lua는 <code>PointInstruction:</code>, XSLT는 <code>xsl:template match</code> + <code>symbolReference</code>만 정적으로 읽습니다. Curve/Surface는 단순 스타일 fallback입니다.</p>
+  </section>
 
-    <div class="standard-card" id="s-124">
-      <span class="badge-std">S-124</span>
-      <h3><a href="s124_ko.html">항행 경고 (Navigational Warnings)</a></h3>
-      <p>S-124는 항행 경고를 인코딩하고 전파하기 위한 데이터 모델을 정의합니다. 기존 NAVTEX 및 라디오 기반 경고 시스템을 구조화된 지리참조 디지털 메시지로 대체하며, 선박이 ECDIS에서 경고를 직접 수신·표시할 수 있도록 합니다.</p>
-      <p class="placeholder-notice"><i class="fa-solid fa-circle-info me-1"></i>세부 내용은 곧 추가될 예정입니다.</p>
-    </div>
+  <script>
+    const xmlParser = new DOMParser();
+    const objectUrls = [];
 
-    <div class="standard-card" id="s-201">
-      <span class="badge-std">S-201</span>
-      <h3><a href="s201_ko.html">항로표지 — AtoN (Aids to Navigation)</a></h3>
-      <p>S-201은 항로표지 정보(부표, 표지, 등대, 음향신호 등)를 위한 표준화된 데이터 모델을 제공합니다. 항로표지 기관, 선박교통관제(VTS) 및 선내 항법 시스템 간 원활한 데이터 교환을 가능하게 합니다.</p>
-      <p class="placeholder-notice"><i class="fa-solid fa-circle-info me-1"></i>세부 내용은 곧 추가될 예정입니다.</p>
-    </div>
+    const map = new ol.Map({
+      target: 'map',
+      layers: [new ol.layer.Tile({ source: new ol.source.OSM() })],
+      view: new ol.View({ center: ol.proj.fromLonLat([129.0756, 35.1796]), zoom: 11 })
+    });
 
-    <div class="standard-card" id="s-158">
-      <span class="badge-std">S-158</span>
-      <h3><a href="s158_ko.html">항만 및 수로 (Ports and Waterways)</a></h3>
-      <p>S-158는 항만 및 내수로 데이터(선석 형상, 항로 경계, 운항 제약 등)에 대한 제품 사양을 정의합니다. 수로 해도 작성과 항만 관리 업무를 연결하는 교량 역할을 합니다.</p>
-      <p class="placeholder-notice"><i class="fa-solid fa-circle-info me-1"></i>세부 내용은 곧 추가될 예정입니다.</p>
-    </div>
+    const vectorSource = new ol.source.Vector();
+    const vectorLayer = new ol.layer.Vector({ source: vectorSource });
+    map.addLayer(vectorLayer);
 
-    <div class="standard-card" id="s-158-100">
-      <span class="badge-std">S-158(100)</span>
-      <h3><a href="s158-100_ko.html">항만 및 수로 — S-100 에디션</a></h3>
-      <p>S-158(100)은 S-100 데이터 모델을 준수하는 항만·수로 제품 사양의 S-100 호환 버전으로, GML 기반 피처 카탈로그를 활용하여 최신 ECDIS 플랫폼과의 완전한 상호운용성을 제공합니다.</p>
-      <p class="placeholder-notice"><i class="fa-solid fa-circle-info me-1"></i>세부 내용은 곧 추가될 예정입니다.</p>
-    </div>
+    const fallbackPointStyle = new ol.style.Style({
+      image: new ol.style.Circle({
+        radius: 6,
+        fill: new ol.style.Fill({ color: 'rgba(214, 63, 36, 0.9)' }),
+        stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 })
+      })
+    });
 
-    <div class="standard-card" id="s-158-98">
-      <span class="badge-std">S-158·98</span>
-      <h3><a href="s158-98_ko.html">항만 및 수로 — S-98 에디션</a></h3>
-      <p>S-158·98은 기존 IHO 인코딩 프레임워크인 S-98 기반의 항만·수로 사양 변형본으로, 레거시 항만 관리 시스템을 위한 마이그레이션 경로 및 호환성 레이어를 제공합니다.</p>
-      <p class="placeholder-notice"><i class="fa-solid fa-circle-info me-1"></i>세부 내용은 곧 추가될 예정입니다.</p>
-    </div>
+    const lineStyle = new ol.style.Style({
+      stroke: new ol.style.Stroke({ color: 'rgba(92, 96, 99, 0.52)', width: 1 })
+    });
 
-    <hr class="my-4" />
+    const areaStyle = new ol.style.Style({
+      stroke: new ol.style.Stroke({ color: 'rgba(92, 96, 99, 0.52)', width: 1 }),
+      fill: new ol.style.Fill({ color: 'rgba(255, 255, 255, 0.025)' })
+    });
 
-    <h2 class="h5 mb-3">빠른 탐색</h2>
-    <div class="section-index">
-      <div class="entry"><h5><a href="s102_ko.html">S-102</a></h5><p style="font-size:.82rem;color:#666;">수심 표면</p></div>
-      <div class="entry"><h5><a href="s124_ko.html">S-124</a></h5><p style="font-size:.82rem;color:#666;">항행 경고</p></div>
-      <div class="entry"><h5><a href="s201_ko.html">S-201</a></h5><p style="font-size:.82rem;color:#666;">항로표지</p></div>
-      <div class="entry"><h5><a href="s158_ko.html">S-158</a></h5><p style="font-size:.82rem;color:#666;">항만 및 수로</p></div>
-      <div class="entry"><h5><a href="s158-100_ko.html">S-158(100)</a></h5><p style="font-size:.82rem;color:#666;">S-100 에디션</p></div>
-      <div class="entry"><h5><a href="s158-98_ko.html">S-158·98</a></h5><p style="font-size:.82rem;color:#666;">S-98 에디션</p></div>
-    </div>
+    document.getElementById('runButton').addEventListener('click', runVisualizer);
+    document.getElementById('mappingButton').addEventListener('click', () => document.getElementById('mappingDrawer').classList.toggle('open'));
+    document.getElementById('mappingClose').addEventListener('click', () => document.getElementById('mappingDrawer').classList.remove('open'));
 
-    <div class="mt-5" style="font-size:.78rem;color:#aaa;">최종 업데이트: 2026년 4월</div>
-  </main>
-</div>
+    map.on('singleclick', event => {
+      const picked = map.forEachFeatureAtPixel(event.pixel, feature => feature);
+      renderFeatureDetails(picked || null);
+    });
 
-<footer class="td-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
-  <span>© 2026 S-100 표준 문서</span>
-  <span>
-    <a href="index_en.html">English</a> &nbsp;|&nbsp;
-    <a href="index.html">한국어</a>
-  </span>
-</footer>
+    function setStatus(message, kind = '') {
+      const el = document.getElementById('status');
+      el.textContent = message;
+      el.className = kind;
+    }
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    function parseXml(text, label) {
+      const doc = xmlParser.parseFromString(text, 'text/xml');
+      const error = doc.getElementsByTagName('parsererror')[0];
+      if (error) throw new Error(`${label} XML 파싱 실패: ${error.textContent.trim().slice(0, 180)}`);
+      return doc;
+    }
+
+    function directChildText(parent, localName) {
+      for (const child of parent.children) {
+        if (child.localName === localName) return child.textContent.trim();
+      }
+      return '';
+    }
+
+    function parseFeatureCatalogue(xmlText) {
+      const doc = parseXml(xmlText, 'FC');
+      const map = new Map();
+      const nodes = Array.from(doc.getElementsByTagNameNS('*', 'S100_FC_FeatureType'));
+
+      for (const node of nodes) {
+        const code = directChildText(node, 'code');
+        if (!code) continue;
+        const name = directChildText(node, 'name') || code;
+        const permittedPrimitives = Array.from(node.children)
+          .filter(child => child.localName === 'permittedPrimitives')
+          .map(child => child.textContent.trim())
+          .filter(Boolean);
+        const attributes = Array.from(node.getElementsByTagNameNS('*', 'attributeBinding'))
+          .map(binding => binding.getElementsByTagNameNS('*', 'attribute')[0]?.getAttribute('ref'))
+          .filter(Boolean);
+
+        map.set(code, { code, name, permittedPrimitives, attributes });
+      }
+      return map;
+    }
+
+    async function parsePortrayalZip(file) {
+      const zip = await JSZip.loadAsync(file);
+      const entries = Object.values(zip.files).filter(entry => !entry.dir);
+
+      const basename = path => path.split('/').pop();
+      const findByBasename = name => entries.find(entry => basename(entry.name).toLowerCase() === name.toLowerCase());
+      const catalogueEntry = findByBasename('portrayal_catalogue.xml');
+      if (!catalogueEntry) throw new Error('PC ZIP 안에서 portrayal_catalogue.xml을 찾을 수 없습니다.');
+
+      const catalogueText = await catalogueEntry.async('text');
+      const catalogueDoc = parseXml(catalogueText, 'Portrayal Catalogue');
+
+      const symbolFiles = new Map();
+      for (const symbol of Array.from(catalogueDoc.getElementsByTagNameNS('*', 'symbol'))) {
+        const id = symbol.getAttribute('id');
+        const fileName = directChildText(symbol, 'fileName');
+        if (id && fileName) symbolFiles.set(id, fileName);
+      }
+
+      // ruleFile id가 항상 FeatureType과 같지는 않으므로 메타데이터로만 보관한다.
+      const ruleFiles = new Map();
+      for (const rule of Array.from(catalogueDoc.getElementsByTagNameNS('*', 'ruleFile'))) {
+        const id = rule.getAttribute('id');
+        const fileName = directChildText(rule, 'fileName');
+        const fileFormat = directChildText(rule, 'fileFormat').toUpperCase();
+        const ruleType = directChildText(rule, 'ruleType');
+        if (id && fileName) ruleFiles.set(id, { id, fileName, fileFormat, ruleType });
+      }
+
+      const dayCssEntry = findByBasename('daySvgStyle.css');
+      const dayCss = dayCssEntry ? await dayCssEntry.async('text') : '';
+
+      const svgUrlsByFilename = new Map();
+      for (const entry of entries.filter(entry => entry.name.toLowerCase().endsWith('.svg'))) {
+        let svgText = await entry.async('text');
+        svgText = svgText.replace(/<\?xml-stylesheet[\s\S]*?\?>/gi, '');
+        if (dayCss) {
+          svgText = svgText.replace(/<svg\b([^>]*)>/i, match => `${match}<style>${dayCss}</style>`);
+        }
+        const blob = new Blob([svgText], { type: 'image/svg+xml' });
+        const url = URL.createObjectURL(blob);
+        objectUrls.push(url);
+        svgUrlsByFilename.set(basename(entry.name), url);
+      }
+
+      // Lua와 XSLT를 모두 텍스트로만 읽는다. 실행하지 않는다.
+      const ruleTextsByFilename = new Map();
+      for (const entry of entries.filter(entry => /\.(lua|xsl|xslt)$/i.test(entry.name))) {
+        ruleTextsByFilename.set(basename(entry.name), await entry.async('text'));
+      }
+
+      // XSLT는 ruleFile id 대신 xsl:template match를 FeatureType 연결 기준으로 사용한다.
+      const xsltFeatureRules = new Map();
+      for (const [fileName, text] of ruleTextsByFilename.entries()) {
+        if (!/\.(xsl|xslt)$/i.test(fileName)) continue;
+        for (const mapping of extractXsltFeatureMappings(text, fileName)) {
+          const previous = xsltFeatureRules.get(mapping.featureCode);
+          if (!previous) {
+            xsltFeatureRules.set(mapping.featureCode, mapping);
+          } else {
+            // 같은 feature에 template이 여러 개면 심볼 후보를 합친다.
+            previous.candidates = Array.from(new Set([...previous.candidates, ...mapping.candidates]));
+          }
+        }
+      }
+
+      const engines = new Set();
+      for (const name of ruleTextsByFilename.keys()) {
+        if (/\.lua$/i.test(name)) engines.add('Lua');
+        if (/\.(xsl|xslt)$/i.test(name)) engines.add('XSLT');
+      }
+
+      return { symbolFiles, ruleFiles, svgUrlsByFilename, ruleTextsByFilename, xsltFeatureRules, engines };
+    }
+
+    function stripLuaComments(text) {
+      return text
+        .replace(/--\[\[[\s\S]*?\]\]--/g, '')
+        .replace(/--\[\[[\s\S]*?\]\]/g, '')
+        .replace(/--[^\r\n]*/g, '');
+    }
+
+    function extractPointInstructionCandidates(luaText) {
+      if (!luaText) return [];
+      const text = stripLuaComments(luaText);
+      const primitiveRegex = /\b(?:if|elseif)\s+feature\.PrimitiveType\s*==\s*PrimitiveType\.(Point|Curve|Surface)\b[^\n]*then/g;
+      const primitiveMatches = Array.from(text.matchAll(primitiveRegex));
+      const pointSegments = [];
+
+      for (let i = 0; i < primitiveMatches.length; i++) {
+        if (primitiveMatches[i][1] !== 'Point') continue;
+        const start = primitiveMatches[i].index;
+        const end = i + 1 < primitiveMatches.length ? primitiveMatches[i + 1].index : text.length;
+        pointSegments.push(text.slice(start, end));
+      }
+
+      const target = pointSegments.length ? pointSegments.join('\n') : text;
+      const occurrences = [];
+      const regex = /PointInstruction:+([A-Za-z0-9_]+)/g;
+      let match;
+      while ((match = regex.exec(target)) !== null) {
+        if (match[1]) occurrences.push(match[1]);
+      }
+      return occurrences;
+    }
+
+    function featureCodesFromXsltMatch(matchExpr) {
+      if (!matchExpr) return [];
+      const codes = [];
+      for (const branch of matchExpr.split('|')) {
+        const withoutPredicates = branch.replace(/\[[\s\S]*?\]/g, '').trim();
+        const steps = withoutPredicates.split('/').map(v => v.trim()).filter(Boolean);
+        if (!steps.length) continue;
+        let token = steps[steps.length - 1];
+        if (token === '*' || token.startsWith('@') || token.includes('(')) continue;
+        token = token.split(':').pop();
+        if (/^[A-Za-z_][A-Za-z0-9_.-]*$/.test(token)) codes.push(token);
+      }
+      return Array.from(new Set(codes));
+    }
+
+    function literalFromXsltSelect(selectValue) {
+      if (!selectValue) return '';
+      const match = selectValue.trim().match(/^['"]([^'"]+)['"]$/);
+      return match ? match[1].trim() : '';
+    }
+
+    function extractXsltSymbolCandidates(template) {
+      const candidates = [];
+
+      // S-129처럼 named template에 symbolReference를 전달하는 패턴.
+      for (const param of Array.from(template.getElementsByTagNameNS('*', 'with-param'))) {
+        if ((param.getAttribute('name') || '').toLowerCase() !== 'symbolreference') continue;
+        const value = literalFromXsltSelect(param.getAttribute('select')) || param.textContent.trim();
+        if (value) candidates.push(value);
+      }
+
+      // 다른 XSLT PC에서 직접 symbolReference 요소를 만드는 단순 패턴도 허용.
+      for (const node of Array.from(template.getElementsByTagNameNS('*', 'symbolReference'))) {
+        const value = node.getAttribute('reference') || node.textContent.trim();
+        if (value && !value.includes('$')) candidates.push(value);
+      }
+
+      // <symbol reference="XXXX"/> 형태의 정적 reference.
+      for (const node of Array.from(template.getElementsByTagNameNS('*', 'symbol'))) {
+        const value = node.getAttribute('reference');
+        if (value && !value.includes('$')) candidates.push(value);
+      }
+
+      return Array.from(new Set(candidates));
+    }
+
+    function extractXsltFeatureMappings(xslText, fileName) {
+      if (!xslText) return [];
+      let doc;
+      try {
+        doc = parseXml(xslText, `XSLT ${fileName}`);
+      } catch (error) {
+        console.warn(error.message);
+        return [];
+      }
+
+      const mappings = [];
+      for (const template of Array.from(doc.getElementsByTagNameNS('*', 'template'))) {
+        const matchExpr = template.getAttribute('match');
+        if (!matchExpr) continue;
+        const featureCodes = featureCodesFromXsltMatch(matchExpr);
+        const candidates = extractXsltSymbolCandidates(template);
+        for (const featureCode of featureCodes) {
+          mappings.push({ featureCode, fileName, matchExpr, candidates });
+        }
+      }
+      return mappings;
+    }
+
+    function getCaseInsensitiveEntry(map, fileName) {
+      const lower = (fileName || '').toLowerCase();
+      return Array.from(map.entries()).find(([name]) => name.toLowerCase() === lower) || null;
+    }
+
+    function getLuaRuleForFeature(featureCode, pc) {
+      const meta = pc.ruleFiles.get(featureCode);
+      let fileName = meta?.fileName && /\.lua$/i.test(meta.fileName) ? meta.fileName : `${featureCode}.lua`;
+      let luaText = pc.ruleTextsByFilename.get(fileName);
+
+      if (!luaText) {
+        const match = getCaseInsensitiveEntry(pc.ruleTextsByFilename, fileName);
+        if (match && /\.lua$/i.test(match[0])) {
+          fileName = match[0];
+          luaText = match[1];
+        }
+      }
+      return { fileName, luaText: luaText || '' };
+    }
+
+    function getRuleForFeature(featureCode, pc) {
+      const xslt = pc.xsltFeatureRules.get(featureCode);
+      if (xslt) return { fileName: xslt.fileName, engine: 'XSLT' };
+
+      const { fileName, luaText } = getLuaRuleForFeature(featureCode, pc);
+      if (luaText) return { fileName, engine: 'Lua' };
+
+      const meta = pc.ruleFiles.get(featureCode);
+      if (meta) return { fileName: meta.fileName, engine: meta.fileFormat || '-' };
+      return { fileName: '', engine: '' };
+    }
+
+    function chooseExistingSvg(candidates, pc, preferLast = false) {
+      const ordered = preferLast ? [...candidates].reverse() : candidates;
+      for (const symbolId of ordered) {
+        const svgFile = pc.symbolFiles.get(symbolId) || `${symbolId}.svg`;
+        const exactUrl = pc.svgUrlsByFilename.get(svgFile);
+        if (exactUrl) return { symbolId, svgFile, svgUrl: exactUrl };
+        const caseMatch = getCaseInsensitiveEntry(pc.svgUrlsByFilename, svgFile);
+        if (caseMatch) return { symbolId, svgFile: caseMatch[0], svgUrl: caseMatch[1] };
+      }
+      return { symbolId: '', svgFile: '', svgUrl: '' };
+    }
+
+    function resolvePointSymbol(featureCode, pc) {
+      // XSLT: xsl:template match="FeatureType" 안의 symbolReference만 정적으로 추출.
+      const xslt = pc.xsltFeatureRules.get(featureCode);
+      if (xslt) {
+        const candidates = xslt.candidates || [];
+        const chosen = chooseExistingSvg(candidates, pc, false);
+        return {
+          engine: 'XSLT',
+          ruleFile: xslt.fileName,
+          candidates,
+          ...chosen
+        };
+      }
+
+      // Lua: FeatureType rule에서 Point primitive 구간의 PointInstruction만 정적으로 추출.
+      const { fileName, luaText } = getLuaRuleForFeature(featureCode, pc);
+      const occurrences = extractPointInstructionCandidates(luaText);
+      const candidates = Array.from(new Set(occurrences));
+      // 조건을 실행하지 않으므로 기존 S-131 MVP처럼 뒤쪽 default/else 계열을 우선한다.
+      const chosen = chooseExistingSvg(occurrences, pc, true);
+      return {
+        engine: luaText ? 'Lua' : '',
+        ruleFile: luaText ? fileName : '',
+        candidates,
+        ...chosen
+      };
+    }
+
+    function axisOrderFor(node, a, b) {
+      if (Math.abs(a) > 90 && Math.abs(b) <= 90) return 'lonlat';
+      if (Math.abs(b) > 90 && Math.abs(a) <= 90) return 'latlon';
+
+      let current = node;
+      while (current && current.nodeType === 1) {
+        const axis = current.getAttribute('axisLabels');
+        if (axis) {
+          const normalized = axis.toLowerCase().replace(/[,/]+/g, ' ').trim();
+          const parts = normalized.split(/\s+/);
+          const first = parts[0] || '';
+          const second = parts[1] || '';
+          if ((first.includes('lat') || first.includes('north')) && (second.includes('lon') || second.includes('east'))) return 'latlon';
+          if ((first.includes('lon') || first.includes('east')) && (second.includes('lat') || second.includes('north'))) return 'lonlat';
+        }
+        const srs = current.getAttribute('srsName') || '';
+        if (/CRS84/i.test(srs)) return 'lonlat';
+        if (/4326/i.test(srs)) return 'latlon';
+        current = current.parentElement;
+      }
+      return 'latlon'; // S-100 GML의 일반적인 EPSG:4326 축 순서를 기본값으로 사용
+    }
+
+    function numbersFromNode(node) {
+      return node.textContent.trim().split(/[\s,]+/).map(Number).filter(Number.isFinite);
+    }
+
+    function coordinatePairs(node) {
+      const values = numbersFromNode(node);
+      if (values.length < 2) return [];
+      const declaredDim = Number(node.getAttribute('srsDimension') || node.parentElement?.getAttribute('srsDimension') || 2);
+      const dim = Number.isFinite(declaredDim) && declaredDim >= 2 ? declaredDim : 2;
+      const pairs = [];
+      for (let i = 0; i + 1 < values.length; i += dim) {
+        const a = values[i];
+        const b = values[i + 1];
+        const order = axisOrderFor(node, a, b);
+        const lon = order === 'latlon' ? b : a;
+        const lat = order === 'latlon' ? a : b;
+        if (Math.abs(lat) <= 90 && Math.abs(lon) <= 180) pairs.push(ol.proj.fromLonLat([lon, lat]));
+      }
+      return pairs;
+    }
+
+    function findDescendantsByLocalName(root, names) {
+      const wanted = new Set(names);
+      return Array.from(root.getElementsByTagName('*')).filter(el => wanted.has(el.localName));
+    }
+
+    function findFirstGeometryElement(featureEl) {
+      const geometryNames = new Set(['Point', 'Curve', 'LineString', 'Surface', 'Polygon', 'MultiPoint', 'MultiCurve', 'MultiSurface']);
+      return Array.from(featureEl.getElementsByTagName('*')).find(el => geometryNames.has(el.localName)) || null;
+    }
+
+    function closeRing(coords) {
+      if (coords.length < 3) return coords;
+      const first = coords[0];
+      const last = coords[coords.length - 1];
+      if (first[0] !== last[0] || first[1] !== last[1]) return [...coords, first.slice()];
+      return coords;
+    }
+
+    function parsePointGeometry(geomEl) {
+      const pos = findDescendantsByLocalName(geomEl, ['pos'])[0];
+      if (!pos) return null;
+      const coords = coordinatePairs(pos);
+      return coords[0] ? new ol.geom.Point(coords[0]) : null;
+    }
+
+    function parseLineGeometry(geomEl) {
+      const posLists = findDescendantsByLocalName(geomEl, ['posList']);
+      if (posLists.length) {
+        const coords = coordinatePairs(posLists[0]);
+        return coords.length >= 2 ? new ol.geom.LineString(coords) : null;
+      }
+      const coords = findDescendantsByLocalName(geomEl, ['pos']).flatMap(coordinatePairs);
+      return coords.length >= 2 ? new ol.geom.LineString(coords) : null;
+    }
+
+    function parsePolygonCoordinates(geomEl) {
+      const rings = findDescendantsByLocalName(geomEl, ['LinearRing']);
+      const result = [];
+
+      if (rings.length) {
+        for (const ring of rings) {
+          const posList = findDescendantsByLocalName(ring, ['posList'])[0];
+          let coords = posList ? coordinatePairs(posList) : findDescendantsByLocalName(ring, ['pos']).flatMap(coordinatePairs);
+          coords = closeRing(coords);
+          if (coords.length >= 4) result.push(coords);
+        }
+      } else {
+        const posList = findDescendantsByLocalName(geomEl, ['posList'])[0];
+        if (posList) {
+          const coords = closeRing(coordinatePairs(posList));
+          if (coords.length >= 4) result.push(coords);
+        }
+      }
+      return result;
+    }
+
+    function parseGeometry(featureEl) {
+      const geomEl = findFirstGeometryElement(featureEl);
+      if (!geomEl) return null;
+
+      if (geomEl.localName === 'Point') return parsePointGeometry(geomEl);
+      if (geomEl.localName === 'Curve' || geomEl.localName === 'LineString') return parseLineGeometry(geomEl);
+      if (geomEl.localName === 'Surface' || geomEl.localName === 'Polygon') {
+        const rings = parsePolygonCoordinates(geomEl);
+        return rings.length ? new ol.geom.Polygon(rings) : null;
+      }
+      if (geomEl.localName === 'MultiPoint') {
+        const points = findDescendantsByLocalName(geomEl, ['Point']).map(parsePointGeometry).filter(Boolean).map(g => g.getCoordinates());
+        return points.length ? new ol.geom.MultiPoint(points) : null;
+      }
+      if (geomEl.localName === 'MultiCurve') {
+        const lines = findDescendantsByLocalName(geomEl, ['Curve', 'LineString']).map(parseLineGeometry).filter(Boolean).map(g => g.getCoordinates());
+        return lines.length ? new ol.geom.MultiLineString(lines) : null;
+      }
+      if (geomEl.localName === 'MultiSurface') {
+        const polygons = findDescendantsByLocalName(geomEl, ['Surface', 'Polygon']).map(parsePolygonCoordinates).filter(r => r.length);
+        return polygons.length ? new ol.geom.MultiPolygon(polygons) : null;
+      }
+      return null;
+    }
+
+    function isInsideGeometry(node, featureEl) {
+      const geometryNames = new Set(['Point', 'Curve', 'LineString', 'Surface', 'Polygon', 'MultiPoint', 'MultiCurve', 'MultiSurface', 'LinearRing', 'pos', 'posList']);
+      let current = node;
+      while (current && current !== featureEl) {
+        if (geometryNames.has(current.localName)) return true;
+        current = current.parentElement;
+      }
+      return false;
+    }
+
+    function collectFeatureAttributes(featureEl) {
+      const ignored = new Set(['boundedBy', 'geometry', 'location']);
+      const attributes = {};
+      const descendants = Array.from(featureEl.getElementsByTagName('*'));
+
+      for (const el of descendants) {
+        if (isInsideGeometry(el, featureEl)) continue;
+        if (ignored.has(el.localName)) continue;
+        if (el.children.length > 0) continue;
+        const value = el.textContent.trim();
+        if (!value) continue;
+        const key = el.localName;
+        if (!attributes[key]) attributes[key] = [];
+        if (!attributes[key].includes(value)) attributes[key].push(value);
+      }
+      return attributes;
+    }
+
+    function parseSampleFeatures(xmlText, featureCatalogue, pc) {
+      const doc = parseXml(xmlText, 'Sample Data');
+      const allElements = Array.from(doc.getElementsByTagName('*'));
+      const featureElements = allElements.filter(el => featureCatalogue.has(el.localName));
+      const results = [];
+
+      for (const featureEl of featureElements) {
+        const code = featureEl.localName;
+        const fc = featureCatalogue.get(code);
+        const geometry = parseGeometry(featureEl);
+        if (!geometry) continue;
+
+        const id = featureEl.getAttribute('gml:id') || featureEl.getAttribute('id') || featureEl.getAttributeNS('http://www.opengis.net/gml/3.2', 'id') || '';
+        const attrs = collectFeatureAttributes(featureEl);
+        const olFeature = new ol.Feature({ geometry });
+
+        const baseRule = getRuleForFeature(code, pc);
+        let portrayal = { engine: baseRule.engine || '', ruleFile: baseRule.fileName, candidates: [], symbolId: '', svgFile: '', svgUrl: '' };
+        const geometryType = geometry.getType();
+        const isPointLike = geometryType === 'Point' || geometryType === 'MultiPoint';
+
+        if (isPointLike) {
+          portrayal = resolvePointSymbol(code, pc);
+          if (portrayal.svgUrl) {
+            olFeature.setStyle(new ol.style.Style({
+              image: new ol.style.Icon({
+                src: portrayal.svgUrl,
+                scale: 1.25,
+                anchor: [0.5, 0.5],
+                anchorXUnits: 'fraction',
+                anchorYUnits: 'fraction'
+              })
+            }));
+          } else {
+            olFeature.setStyle(fallbackPointStyle);
+          }
+        } else if (geometryType.includes('Line')) {
+          olFeature.setStyle(lineStyle);
+        } else {
+          olFeature.setStyle(areaStyle);
+        }
+
+        const meta = {
+          id,
+          code,
+          name: fc?.name || code,
+          geometryType,
+          permittedPrimitives: fc?.permittedPrimitives || [],
+          attributes: attrs,
+          portrayal
+        };
+        olFeature.set('_meta', meta);
+        results.push({ olFeature, meta });
+      }
+      return results;
+    }
+
+    function renderFeatureDetails(feature) {
+      const box = document.getElementById('details');
+      if (!feature) {
+        box.classList.remove('open');
+        box.innerHTML = '';
+        return;
+      }
+
+      const meta = feature.get('_meta');
+      if (!meta) return;
+      const attrEntries = Object.entries(meta.attributes);
+      const attrsHtml = attrEntries.length
+        ? `<ul class="attr-list">${attrEntries.map(([key, values]) => `<li><strong>${escapeHtml(key)}</strong>: ${escapeHtml(values.join(', '))}</li>`).join('')}</ul>`
+        : '<p class="hint">읽힌 비공간 속성이 없습니다.</p>';
+
+      box.innerHTML = `
+        <div class="details-head">
+          <h2>${escapeHtml(meta.name)}</h2>
+          <button class="close-button" id="detailsClose" type="button" aria-label="Feature 정보 닫기">×</button>
+        </div>
+        <dl class="kv">
+          <dt>FeatureType</dt><dd><span class="badge">${escapeHtml(meta.code)}</span></dd>
+          <dt>gml:id</dt><dd>${escapeHtml(meta.id || '-')}</dd>
+          <dt>Geometry</dt><dd>${escapeHtml(meta.geometryType)}</dd>
+          <dt>FC primitive</dt><dd>${escapeHtml(meta.permittedPrimitives.join(', ') || '-')}</dd>
+          <dt>PC Rule</dt><dd>${escapeHtml((meta.portrayal.engine ? meta.portrayal.engine + ' · ' : '') + (meta.portrayal.ruleFile || '-'))}</dd>
+          <dt>Symbol ID</dt><dd>${escapeHtml(meta.portrayal.symbolId || '-')}</dd>
+          <dt>SVG file</dt><dd>${escapeHtml(meta.portrayal.svgFile || '-')}</dd>
+          <dt>후보</dt><dd>${escapeHtml(meta.portrayal.candidates.join(', ') || '-')}</dd>
+        </dl>
+        <h2 style="margin-top:18px;">GML 속성</h2>
+        ${attrsHtml}
+      `;
+      box.classList.add('open');
+      document.getElementById('detailsClose').addEventListener('click', () => renderFeatureDetails(null));
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    function renderMapping(results) {
+      const body = document.getElementById('mappingBody');
+      const unique = new Map();
+      for (const result of results) {
+        if (!unique.has(result.meta.code)) unique.set(result.meta.code, result.meta);
+      }
+
+      if (!unique.size) {
+        body.innerHTML = '<tr><td colspan="4">표시 가능한 feature를 찾지 못했습니다.</td></tr>';
+        return;
+      }
+
+      body.innerHTML = Array.from(unique.values()).sort((a, b) => a.code.localeCompare(b.code)).map(meta => `
+        <tr>
+          <td><strong>${escapeHtml(meta.code)}</strong><br><span style="color:#667085">${escapeHtml(meta.name)}</span></td>
+          <td>${escapeHtml((meta.portrayal.engine ? meta.portrayal.engine + ' · ' : '') + (meta.portrayal.ruleFile || '-'))}</td>
+          <td>${escapeHtml(meta.portrayal.candidates.join(', ') || '-')}</td>
+          <td>${escapeHtml(meta.portrayal.svgFile || (meta.geometryType === 'Point' || meta.geometryType === 'MultiPoint' ? 'fallback circle' : 'simple line/area'))}</td>
+        </tr>
+      `).join('');
+    }
+
+    async function runVisualizer() {
+      const sampleFile = document.getElementById('sampleFile').files[0];
+      const fcFile = document.getElementById('fcFile').files[0];
+      const pcZipFile = document.getElementById('pcZip').files[0];
+      const button = document.getElementById('runButton');
+
+      if (!sampleFile || !fcFile || !pcZipFile) {
+        setStatus('Sample Data, FC, PC ZIP 세 파일을 모두 선택해 주세요.', 'error');
+        return;
+      }
+
+      button.disabled = true;
+      setStatus('FC와 PC를 해석하는 중...');
+      vectorSource.clear();
+      renderFeatureDetails(null);
+
+      for (const url of objectUrls.splice(0)) URL.revokeObjectURL(url);
+
+      try {
+        const [sampleText, fcText] = await Promise.all([sampleFile.text(), fcFile.text()]);
+        const featureCatalogue = parseFeatureCatalogue(fcText);
+        if (!featureCatalogue.size) throw new Error('FC에서 S100_FC_FeatureType을 찾지 못했습니다.');
+
+        const pc = await parsePortrayalZip(pcZipFile);
+        setStatus('GML feature와 PC rule을 연결하는 중...');
+
+        const results = parseSampleFeatures(sampleText, featureCatalogue, pc);
+        let extent = ol.extent.createEmpty();
+        let svgApplied = 0;
+        let fallback = 0;
+
+        for (const result of results) {
+          vectorSource.addFeature(result.olFeature);
+          ol.extent.extend(extent, result.olFeature.getGeometry().getExtent());
+          const pointLike = result.meta.geometryType === 'Point' || result.meta.geometryType === 'MultiPoint';
+          if (pointLike && result.meta.portrayal.svgUrl) svgApplied++;
+          else if (pointLike) fallback++;
+        }
+
+        document.getElementById('fcCount').textContent = featureCatalogue.size;
+        document.getElementById('pcSymbolCount').textContent = pc.symbolFiles.size;
+        document.getElementById('featureCount').textContent = results.length;
+        document.getElementById('svgAppliedCount').textContent = svgApplied;
+        document.getElementById('fallbackCount').textContent = fallback;
+        document.getElementById('stats').hidden = false;
+        renderMapping(results);
+
+        if (!ol.extent.isEmpty(extent)) {
+          map.getView().fit(extent, { padding: [48, 48, 48, 48], duration: 500, maxZoom: 17 });
+          setStatus(`완료: ${results.length}개 feature · PC ${Array.from(pc.engines).join(' + ') || 'Rule 없음'}`, 'ok');
+        } else {
+          throw new Error('FC FeatureType과 일치하면서 해석 가능한 GML geometry를 찾지 못했습니다.');
+        }
+      } catch (error) {
+        console.error(error);
+        setStatus(error.message || String(error), 'error');
+      } finally {
+        button.disabled = false;
+      }
+    }
+  </script>
 </body>
 </html>

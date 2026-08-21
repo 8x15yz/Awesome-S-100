@@ -1,0 +1,24 @@
+name: Link Check
+
+on:
+  schedule:
+    - cron: '0 3 1 * *'   # first day of every month at 03:00 UTC
+  workflow_dispatch:
+
+jobs:
+  linkcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check links
+        uses: lycheeverse/lychee-action@v1
+        with:
+          args: >
+            --verbose
+            --no-progress
+            --exclude 'registry\.iho\.int'
+            --exclude 'iho\.int'
+            README.md CONTRIBUTING.md CURATION.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

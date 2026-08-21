@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ko" data-bs-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>S-100 표준 문서</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    :root {
+      --primary: #1a73e8;
+      --primary-dark: #1558b0;
+      --sidebar-width: 260px;
+      --navbar-height: 56px;
+    }
+
+    body {
+      font-family: "Pretendard", "Noto Sans KR", "Segoe UI", system-ui, sans-serif;
+      background: #f8f9fa;
+    }
+
+    .td-navbar { background:#fff; height:var(--navbar-height); position:sticky; top:0; z-index:1030; box-shadow:0 1px 4px rgba(0,0,0,.12); }
+    .navbar-brand__name { color:var(--primary); font-weight:600; font-size:1.1rem; }
+    .nav-link-lang { color:var(--primary)!important; font-weight:500; border:1px solid var(--primary); border-radius:4px; padding:3px 10px!important; transition:background .15s; }
+    .nav-link-lang:hover { background:#e8f0fe; }
+    .nav-link-lang.current { background:#e8f0fe; border-color:var(--primary-dark); color:var(--primary-dark)!important; font-weight:700; }
+
+    .td-outer { display:flex; min-height:calc(100vh - var(--navbar-height)); }
+
+    .td-sidebar { width:var(--sidebar-width); min-width:var(--sidebar-width); background:#fff; border-right:1px solid #dee2e6; padding:1.5rem 0; position:sticky; top:var(--navbar-height); height:calc(100vh - var(--navbar-height)); overflow-y:auto; }
+    .td-sidebar-nav a { display:block; padding:.35rem 1.25rem; color:#495057; text-decoration:none; font-size:.9rem; border-left:3px solid transparent; transition:all .12s; }
+    .td-sidebar-nav a:hover { color:var(--primary); background:#f0f4ff; border-left-color:var(--primary); }
+    .td-sidebar-nav a.active { color:var(--primary); font-weight:600; border-left-color:var(--primary); background:#e8f0fe; }
+    .sidebar-section-title { font-size:.7rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#6c757d; padding:1rem 1.25rem .3rem; }
+
+    .td-main { flex:1; padding:2.5rem 3rem; max-width:900px; }
+
+    .pageinfo-primary { background:#e8f0fe; border-left:4px solid var(--primary); border-radius:4px; padding:1rem 1.25rem; margin-bottom:1.75rem; color:#1a1a1a; }
+
+    .standard-card { background:#fff; border:1px solid #dee2e6; border-radius:8px; padding:1.5rem; margin-bottom:1.25rem; transition:box-shadow .15s, border-color .15s; }
+    .standard-card:hover { box-shadow:0 4px 16px rgba(26,115,232,.12); border-color:var(--primary); }
+    .standard-card h3 { font-size:1.05rem; font-weight:600; margin-bottom:.4rem; color:var(--primary); }
+    .standard-card h3 a { color:inherit; text-decoration:none; }
+    .standard-card .badge-std { background:#e8f0fe; color:var(--primary-dark); font-size:.72rem; font-weight:600; padding:2px 8px; border-radius:20px; margin-right:6px; }
+    .standard-card p { font-size:.9rem; color:#555; margin-bottom:.6rem; }
+    .placeholder-notice { font-size:.8rem; color:#888; font-style:italic; }
+
+    .section-index { display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:1rem; margin-top:1.5rem; }
+    .section-index .entry { background:#fff; border:1px solid #dee2e6; border-radius:6px; padding:1rem; }
+    .section-index .entry h5 a { color:var(--primary); text-decoration:none; font-size:.95rem; }
+
+    .td-footer { background:#343a40; color:rgba(255,255,255,.7); padding:1.25rem 2rem; font-size:.82rem; }
+    .td-footer a { color:rgba(255,255,255,.6); }
+
+    @media(max-width:767px){ .td-sidebar{display:none;} .td-main{padding:1.5rem 1.25rem;} }
+  </style>
+</head>
+<body>
+
+<nav class="td-navbar navbar navbar-expand-md">
+  <div class="container-fluid px-3">
+    <a class="navbar-brand d-flex align-items-center gap-2" href="index.html">
+<span class="navbar-brand__name">S-100 표준 문서</span>
+    </a>
+    <div class="ms-auto d-flex align-items-center gap-3">
+      <span style="color:#aaa;font-size:.85rem;">🌐</span>
+      <a class="nav-link-lang" href="index_en.html">English</a>
+      <a class="nav-link-lang current" href="index.html"><strong>한국어</strong></a>
+    </div>
+  </div>
+</nav>
+
+<div class="td-outer">
+  <aside class="td-sidebar d-none d-md-block">
+    <nav class="td-sidebar-nav">
+      <div class="sidebar-section-title">문서</div>
+      <a href="index.html" class="active">개요</a>
+      <div class="sidebar-section-title">표준 목록</div>
+      <a href="s102_ko.html">S-102 — 수심 표면</a>
+      <a href="s124_ko.html">S-124 — 항행 경고</a>
+      <a href="s201_ko.html">S-201 — 항로표지 (AtoN)</a>
+      <a href="s158_ko.html">S-158 — 항만 및 수로</a>
+      <a href="s158-100_ko.html">S-158(100) — 항만 (S-100 기반)</a>
+      <a href="s158-98_ko.html">S-158·98 — 항만 (S-98 기반)</a>
+    </nav>
+  </aside>
+
+  <main class="td-main">
+    <nav aria-label="breadcrumb" class="mb-3">
+      <ol class="breadcrumb" style="font-size:.85rem;">
+        <li class="breadcrumb-item active" aria-current="page">문서</li>
+      </ol>
+    </nav>
+
+    <h1 class="mb-3">S-100 표준 문서</h1>
+
+    <div class="pageinfo-primary">
+      <p class="mb-0">S-100 표준 문서 포털에 오신 것을 환영합니다. 이 포털은 IHO 범용 수로 데이터 모델 기반 제품 사양의 참조 허브입니다.</p>
+    </div>
+
+    <p>
+      <strong>S-100</strong>은 국제수로기구(IHO)가 발행한 범용 수로 데이터 모델로, 차세대 디지털 해양 표준의 기반이 됩니다.
+      이 포털은 현대 전자해도(ENC) 시스템, 항만 관리, 해양 안전 서비스에서 사용되는
+      S-100 계열 제품 사양 일체를 문서화합니다.
+    </p>
+
+    <p>
+      각 표준은 피처 카탈로그, 묘사 카탈로그, GML 스키마를 정의하여
+      선박·항만청·해양 안전기관 간 상호 운용 가능한 지리공간 해양 데이터 교환을 지원합니다.
+    </p>
+
+    <hr class="my-4" />
+
+    <div class="standard-card" id="s-102">
+      <span class="badge-std">S-102</span>
+      <h3><a href="s102_ko.html">수심 표면 (Bathymetric Surface)</a></h3>
+      <p>S-102는 수심 표면 데이터의 콘텐츠 모델과 인코딩을 규정합니다. ENC 데이터를 보완하는 고해상도 수심 정보를 제공하며, 항해 계획 시스템 및 자율 선박 항법에서 활용되는 격자 기반 수심 모델을 지원합니다.</p>
+      <p class="placeholder-notice"><i class="fa-solid fa-circle-info me-1"></i>세부 내용은 곧 추가될 예정입니다.</p>
+    </div>
+
+    <div class="standard-card" id="s-124">
+      <span class="badge-std">S-124</span>
+      <h3><a href="s124_ko.html">항행 경고 (Navigational Warnings)</a></h3>
+      <p>S-124는 항행 경고를 인코딩하고 전파하기 위한 데이터 모델을 정의합니다. 기존 NAVTEX 및 라디오 기반 경고 시스템을 구조화된 지리참조 디지털 메시지로 대체하며, 선박이 ECDIS에서 경고를 직접 수신·표시할 수 있도록 합니다.</p>
+      <p class="placeholder-notice"><i class="fa-solid fa-circle-info me-1"></i>세부 내용은 곧 추가될 예정입니다.</p>
+    </div>
+
+    <div class="standard-card" id="s-201">
+      <span class="badge-std">S-201</span>
+      <h3><a href="s201_ko.html">항로표지 — AtoN (Aids to Navigation)</a></h3>
+      <p>S-201은 항로표지 정보(부표, 표지, 등대, 음향신호 등)를 위한 표준화된 데이터 모델을 제공합니다. 항로표지 기관, 선박교통관제(VTS) 및 선내 항법 시스템 간 원활한 데이터 교환을 가능하게 합니다.</p>
+      <p class="placeholder-notice"><i class="fa-solid fa-circle-info me-1"></i>세부 내용은 곧 추가될 예정입니다.</p>
+    </div>
+
+    <div class="standard-card" id="s-158">
+      <span class="badge-std">S-158</span>
+      <h3><a href="s158_ko.html">항만 및 수로 (Ports and Waterways)</a></h3>
+      <p>S-158는 항만 및 내수로 데이터(선석 형상, 항로 경계, 운항 제약 등)에 대한 제품 사양을 정의합니다. 수로 해도 작성과 항만 관리 업무를 연결하는 교량 역할을 합니다.</p>
+      <p class="placeholder-notice"><i class="fa-solid fa-circle-info me-1"></i>세부 내용은 곧 추가될 예정입니다.</p>
+    </div>
+
+    <div class="standard-card" id="s-158-100">
+      <span class="badge-std">S-158(100)</span>
+      <h3><a href="s158-100_ko.html">항만 및 수로 — S-100 에디션</a></h3>
+      <p>S-158(100)은 S-100 데이터 모델을 준수하는 항만·수로 제품 사양의 S-100 호환 버전으로, GML 기반 피처 카탈로그를 활용하여 최신 ECDIS 플랫폼과의 완전한 상호운용성을 제공합니다.</p>
+      <p class="placeholder-notice"><i class="fa-solid fa-circle-info me-1"></i>세부 내용은 곧 추가될 예정입니다.</p>
+    </div>
+
+    <div class="standard-card" id="s-158-98">
+      <span class="badge-std">S-158·98</span>
+      <h3><a href="s158-98_ko.html">항만 및 수로 — S-98 에디션</a></h3>
+      <p>S-158·98은 기존 IHO 인코딩 프레임워크인 S-98 기반의 항만·수로 사양 변형본으로, 레거시 항만 관리 시스템을 위한 마이그레이션 경로 및 호환성 레이어를 제공합니다.</p>
+      <p class="placeholder-notice"><i class="fa-solid fa-circle-info me-1"></i>세부 내용은 곧 추가될 예정입니다.</p>
+    </div>
+
+    <hr class="my-4" />
+
+    <h2 class="h5 mb-3">빠른 탐색</h2>
+    <div class="section-index">
+      <div class="entry"><h5><a href="s102_ko.html">S-102</a></h5><p style="font-size:.82rem;color:#666;">수심 표면</p></div>
+      <div class="entry"><h5><a href="s124_ko.html">S-124</a></h5><p style="font-size:.82rem;color:#666;">항행 경고</p></div>
+      <div class="entry"><h5><a href="s201_ko.html">S-201</a></h5><p style="font-size:.82rem;color:#666;">항로표지</p></div>
+      <div class="entry"><h5><a href="s158_ko.html">S-158</a></h5><p style="font-size:.82rem;color:#666;">항만 및 수로</p></div>
+      <div class="entry"><h5><a href="s158-100_ko.html">S-158(100)</a></h5><p style="font-size:.82rem;color:#666;">S-100 에디션</p></div>
+      <div class="entry"><h5><a href="s158-98_ko.html">S-158·98</a></h5><p style="font-size:.82rem;color:#666;">S-98 에디션</p></div>
+    </div>
+
+    <div class="mt-5" style="font-size:.78rem;color:#aaa;">최종 업데이트: 2026년 4월</div>
+  </main>
+</div>
+
+<footer class="td-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <span>© 2026 S-100 표준 문서</span>
+  <span>
+    <a href="index_en.html">English</a> &nbsp;|&nbsp;
+    <a href="index.html">한국어</a>
+  </span>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
