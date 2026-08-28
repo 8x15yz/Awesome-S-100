@@ -1,1208 +1,862 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>S-100 FC/PC 경량 뷰어 · Lua + XSLT MVP</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QEA → S-100 FC 변환기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-950:#081422;
+    --navy-900:#0d1b2a;
+    --navy-800:#13293d;
+    --navy-700:#1c3a53;
+    --navy-600:#2a5170;
+    --paper:#f4f1e8;
+    --paper-dim:#d8d3c3;
+    --teal:#4fb3bf;
+    --teal-bright:#7fd4de;
+    --amber:#e0a458;
+    --coral:#e0715f;
+    --ink:#e8ecef;
+    --ink-dim:#9fb1c1;
+    --mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+    --disp: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse 900px 500px at 12% -10%, rgba(79,179,191,0.12), transparent 60%),
+      var(--navy-950);
+    color:var(--ink);
+    font-family:var(--disp);
+    min-height:100vh;
+    line-height:1.5;
+  }
+  .contours{
+    position:fixed; inset:0; z-index:0; pointer-events:none; opacity:0.5;
+  }
+  .wrap{
+    position:relative; z-index:1;
+    max-width:920px; margin:0 auto; padding:56px 24px 80px;
+  }
+  header{margin-bottom:40px;}
+  .eyebrow{
+    font-family:var(--mono); font-size:12px; letter-spacing:0.14em; text-transform:uppercase;
+    color:var(--teal-bright); display:flex; align-items:center; gap:10px; margin-bottom:14px;
+  }
+  .eyebrow::before{content:"";width:22px;height:1px;background:var(--teal-bright);display:inline-block;}
+  h1{
+    font-size:clamp(28px,4vw,40px); font-weight:600; margin:0 0 12px; letter-spacing:-0.01em;
+  }
+  h1 .accent{color:var(--teal-bright);}
+  .lede{color:var(--ink-dim); max-width:60ch; font-size:15.5px; margin:0;}
+  .lede code{font-family:var(--mono); background:rgba(79,179,191,0.12); padding:1px 5px; border-radius:3px; color:var(--teal-bright); font-size:0.92em;}
 
-  <!-- OpenLayers -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v7.3.0/ol.css">
-  <script src="https://cdn.jsdelivr.net/npm/ol@v7.3.0/dist/ol.js"></script>
+  .panel{
+    background:linear-gradient(180deg, var(--navy-800), var(--navy-900));
+    border:1px solid var(--navy-600);
+    border-radius:10px;
+    padding:28px;
+    margin-bottom:20px;
+  }
 
-  <!-- PC ZIP 해제 -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  .drop{
+    border:1.5px dashed var(--navy-600);
+    border-radius:8px;
+    padding:36px 24px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color .15s ease, background .15s ease;
+    background:rgba(255,255,255,0.015);
+  }
+  .drop:hover, .drop.drag{border-color:var(--teal); background:rgba(79,179,191,0.06);}
+  .drop input{display:none;}
+  .drop .glyph{font-size:26px; margin-bottom:10px; color:var(--teal-bright); font-family:var(--mono);}
+  .drop .main{font-size:15px; font-weight:500;}
+  .drop .sub{font-size:12.5px; color:var(--ink-dim); margin-top:6px; font-family:var(--mono);}
+  .filename{
+    margin-top:14px; font-family:var(--mono); font-size:13px; color:var(--teal-bright);
+    display:none; align-items:center; gap:8px; justify-content:center;
+  }
+  .filename.show{display:flex;}
 
-  <style>
-    * { box-sizing: border-box; }
-    html, body {
-      width: 100%;
-      height: 100%;
-      margin: 0;
-      overflow: hidden;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      color: #1f2937;
-      background: #dfe8ed;
-    }
+  .actions{display:flex; gap:10px; margin-top:20px; flex-wrap:wrap;}
+  button{
+    font-family:var(--disp); font-weight:600; font-size:14px;
+    border:none; border-radius:6px; padding:12px 20px; cursor:pointer;
+    transition:transform .1s ease, box-shadow .15s ease, opacity .15s ease;
+  }
+  button:disabled{opacity:0.4; cursor:not-allowed;}
+  .btn-primary{background:var(--teal); color:var(--navy-950);}
+  .btn-primary:hover:not(:disabled){box-shadow:0 0 0 3px rgba(79,179,191,0.25);}
+  .btn-primary:active:not(:disabled){transform:translateY(1px);}
+  .btn-ghost{background:transparent; color:var(--ink); border:1px solid var(--navy-600);}
+  .btn-ghost:hover:not(:disabled){border-color:var(--teal); color:var(--teal-bright);}
 
-    /* 지도 영역 */
-    #map {
-      position: fixed;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      background: #dce7ed;
-    }
+  .status{
+    font-family:var(--mono); font-size:12.5px; color:var(--ink-dim); margin-top:14px;
+    display:flex; align-items:center; gap:8px; min-height:18px;
+  }
+  .status.err{color:var(--coral);}
+  .dot{width:6px;height:6px;border-radius:50%; background:var(--teal); flex-shrink:0;}
+  .dot.spin{animation:pulse 1s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.2;}}
 
-    .ol-zoom { top: auto; left: 14px; bottom: 14px; }
-    .ol-attribution { right: 8px; bottom: 6px; }
+  .results{display:none;}
+  .results.show{display:block;}
 
-    /* 좌측 사이드바 버튼 그룹 컨테이너 */
-    .sidebar-nav {
-      position: fixed;
-      z-index: 20;
-      top: 14px;
-      left: 14px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
+  .stat-row{display:flex; gap:12px; flex-wrap:wrap; margin-bottom:22px;}
+  .stat{
+    flex:1; min-width:120px;
+    background:var(--navy-800); border:1px solid var(--navy-700); border-radius:8px;
+    padding:14px 16px;
+  }
+  .stat .n{font-family:var(--mono); font-size:24px; font-weight:600; color:var(--teal-bright);}
+  .stat .l{font-size:11.5px; color:var(--ink-dim); text-transform:uppercase; letter-spacing:0.08em; margin-top:2px;}
+  .stat.warn .n{color:var(--amber);}
 
-    /* 공통 드로어 아이템 스타일 */
-    .control-drawer {
-      position: relative;
-      width: 50px;
-      height: 50px;
-      border: 1px solid rgba(148, 163, 184, 0.42);
-      border-radius: 12px;
-      background: rgba(255, 255, 255, 0.88);
-      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.1);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      transition: width 180ms ease, height 180ms ease, background 180ms ease, box-shadow 180ms ease;
-      overflow: hidden;
-    }
+  .downloads{display:flex; gap:10px; margin-bottom:22px; flex-wrap:wrap;}
+  .dl-card{
+    flex:1; min-width:220px;
+    background:var(--navy-800); border:1px solid var(--navy-700); border-radius:8px;
+    padding:16px 18px; display:flex; flex-direction:column; gap:10px;
+  }
+  .dl-card .name{font-family:var(--mono); font-size:13px; color:var(--teal-bright); word-break:break-all;}
+  .dl-card .desc{font-size:12.5px; color:var(--ink-dim);}
 
-    .control-drawer:hover,
-    .control-drawer:focus-within {
-      background: rgba(255, 255, 255, 0.97);
-      box-shadow: 0 12px 34px rgba(15, 23, 42, 0.16);
-    }
+  .tabs{display:flex; gap:2px; border-bottom:1px solid var(--navy-700); margin-bottom:16px;}
+  .tab{
+    font-family:var(--mono); font-size:12.5px; padding:9px 14px; cursor:pointer;
+    color:var(--ink-dim); border-bottom:2px solid transparent; user-select:none;
+  }
+  .tab.active{color:var(--teal-bright); border-bottom-color:var(--teal);}
+  .tab-panel{display:none;}
+  .tab-panel.active{display:block;}
 
-    /* 1. 파일 설정 드로어 확장 */
-    #drawer-files:hover,
-    #drawer-files:focus-within {
-      width: min(410px, calc(100vw - 28px));
-      height: auto;
-      max-height: calc(100vh - 28px);
-    }
+  .warnlist{list-style:none; margin:0; padding:0; max-height:340px; overflow-y:auto;}
+  .warnlist li{
+    font-family:var(--mono); font-size:12.5px; color:var(--paper-dim);
+    padding:9px 12px; border-left:2px solid var(--amber);
+    background:rgba(224,164,88,0.06); margin-bottom:6px; border-radius:0 4px 4px 0;
+  }
+  .warnlist.empty{color:var(--ink-dim); font-style:normal; padding:12px; font-family:var(--mono); border:1px dashed var(--navy-700); border-radius:6px; border-left:1px dashed var(--navy-700);}
 
-    /* 2. 피처 리스트 드로어 확장 */
-    #drawer-features:hover,
-    #drawer-features:focus-within {
-      width: min(340px, calc(100vw - 28px));
-      height: auto;
-      max-height: calc(100vh - 90px);
-    }
+  pre.code{
+    background:var(--navy-950); border:1px solid var(--navy-700); border-radius:8px;
+    padding:16px; max-height:420px; overflow:auto;
+    font-family:var(--mono); font-size:12px; line-height:1.6; color:var(--ink);
+    white-space:pre; margin:0;
+  }
+  pre.code .tag{color:var(--teal-bright);}
 
-    /* 아이콘 스타일 */
-    .drawer-handle {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 50px;
-      height: 50px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 20px;
-      color: #475467;
-      user-select: none;
-      cursor: pointer;
-    }
+  footer{margin-top:36px; font-family:var(--mono); font-size:11.5px; color:var(--ink-dim); text-align:center;}
+  footer a{color:var(--teal-bright); text-decoration:none;}
 
-    /* 드로어 내부 컨텐츠 패널 */
-    .drawer-content {
-      width: 340px;
-      margin-left: 50px;
-      padding: 14px 16px 16px 0;
-      opacity: 0;
-      transform: translateX(-8px);
-      pointer-events: none;
-      transition: opacity 120ms ease, transform 180ms ease;
-    }
-
-    .control-drawer:hover .drawer-content,
-    .control-drawer:focus-within .drawer-content {
-      opacity: 1;
-      transform: translateX(0);
-      pointer-events: auto;
-    }
-
-    .drawer-title {
-      margin: 0 0 3px;
-      font-size: 15px;
-      font-weight: 800;
-      letter-spacing: -0.01em;
-    }
-    .drawer-subtitle {
-      margin: 0 0 10px;
-      color: #667085;
-      font-size: 11px;
-      line-height: 1.4;
-    }
-
-    /* 파일 입력 UI */
-    .inputs { display: grid; gap: 8px; }
-    .file-input {
-      border: 1px solid #e4e7ec;
-      border-radius: 8px;
-      padding: 8px 10px;
-      background: rgba(248, 250, 252, 0.82);
-    }
-    .file-input label {
-      display: block;
-      margin-bottom: 4px;
-      font-size: 11px;
-      font-weight: 750;
-    }
-    .file-input small {
-      display: block;
-      margin-top: 3px;
-      color: #7a8391;
-      font-size: 10px;
-    }
-    input[type="file"] { width: 100%; font-size: 11px; }
-
-    .actions {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-top: 10px;
-      flex-wrap: wrap;
-    }
-    button {
-      border: 0;
-      border-radius: 7px;
-      min-height: 34px;
-      padding: 7px 11px;
-      cursor: pointer;
-      font-weight: 750;
-      font-size: 11px;
-      color: #fff;
-      background: #1769aa;
-    }
-    button:hover { background: #125789; }
-    button:disabled { opacity: .55; cursor: not-allowed; }
-    .secondary-button { color: #475467; background: #eef2f6; }
-    .secondary-button:hover { background: #e4e7ec; }
-
-    #status {
-      flex: 1 1 100%;
-      color: #667085;
-      font-size: 11px;
-      line-height: 1.4;
-    }
-    #status.error { color: #b42318; font-weight: 700; }
-    #status.ok { color: #067647; font-weight: 700; }
-
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
-      gap: 4px;
-      margin-top: 8px;
-    }
-    .stat {
-      border: 1px solid #edf0f3;
-      border-radius: 6px;
-      padding: 5px 4px;
-      background: #f8fafc;
-      text-align: center;
-    }
-    .stat .value { font-size: 12px; font-weight: 800; }
-    .stat .label { color: #7a8391; font-size: 8px; }
-
-    /* 피처 목록 전용 UI 스타일 */
-    .feature-list-header {
-      font-size: 12px;
-      font-weight: 800;
-      color: #344054;
-      margin-bottom: 8px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .feature-list {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-      max-height: 280px;
-      overflow-y: auto;
-      border: 1px solid #eaecf0;
-      border-radius: 8px;
-      background: #ffffff;
-    }
-    .feature-item {
-      padding: 8px 10px;
-      font-size: 11px;
-      border-bottom: 1px solid #f2f4f7;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      transition: background 120ms;
-    }
-    .feature-item:last-child { border-bottom: none; }
-    .feature-item:hover { background: #f8fafc; }
-    .feature-item.selected {
-      background: #eff8ff;
-      border-left: 3px solid #1769aa;
-      font-weight: 700;
-    }
-    .feature-item-code { font-weight: 700; color: #1d2939; }
-    .feature-item-type {
-      font-size: 9px;
-      color: #667085;
-      background: #f2f4f7;
-      padding: 2px 5px;
-      border-radius: 4px;
-    }
-    .no-features {
-      padding: 20px;
-      text-align: center;
-      color: #98a2b3;
-      font-size: 12px;
-      font-weight: 600;
-    }
-
-    /* 우측 피크/상세정보 패널 */
-    .details {
-      position: fixed;
-      z-index: 18;
-      top: 14px;
-      right: 14px;
-      width: min(320px, calc(100% - 28px));
-      max-height: calc(100% - 28px);
-      overflow: auto;
-      display: none;
-      padding: 14px;
-      border: 1px solid rgba(148, 163, 184, 0.42);
-      border-radius: 12px;
-      background: rgba(255, 255, 255, 0.96);
-      box-shadow: 0 10px 28px rgba(15, 23, 42, 0.14);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-    }
-    .details.open { display: block; }
-    .details-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
-    .details-head-actions { display: flex; align-items: center; gap: 6px; }
-    .focus-button {
-      min-height: 26px; width: 26px; padding: 0; border-radius: 6px;
-      color: #1769aa; background: #eef6fc; font-size: 14px;
-      display: inline-flex; align-items: center; justify-content: center;
-    }
-    .focus-button:hover { background: #dcecf8; }
-    .details h2 { margin: 0 0 10px; font-size: 14px; }
-    .close-button {
-      min-height: 26px; width: 26px; padding: 0; border-radius: 6px;
-      color: #667085; background: #f2f4f7; font-size: 16px;
-    }
-    .close-button:hover { background: #e4e7ec; }
-    .kv { display: grid; grid-template-columns: 80px minmax(0, 1fr); gap: 6px 8px; font-size: 11px; }
-    .kv dt { color: #667085; }
-    .kv dd { margin: 0; overflow-wrap: anywhere; }
-    .attr-list { margin: 8px 0 0; padding: 0; list-style: none; font-size: 11px; }
-    .attr-list li { padding: 5px 0; border-top: 1px solid #eef2f6; }
-    .badge { display: inline-block; padding: 2px 5px; border-radius: 4px; background: #eef4ff; color: #3538cd; font-size: 10px; font-weight: 700; }
-
-    /* 하단 매핑 드로어 */
-    .mapping-drawer {
-      position: fixed;
-      z-index: 19;
-      left: 50%;
-      bottom: 14px;
-      width: min(900px, calc(100% - 28px));
-      max-height: min(400px, calc(100% - 90px));
-      display: none;
-      transform: translateX(-50%);
-      overflow: hidden;
-      border: 1px solid rgba(148, 163, 184, 0.42);
-      border-radius: 12px;
-      background: rgba(255, 255, 255, 0.97);
-      box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
-    }
-    .mapping-drawer.open { display: block; }
-    .mapping-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid #eaecf0; font-size: 12px; font-weight: 800; }
-    .mapping-scroll { overflow: auto; max-height: 300px; }
-    .mapping-drawer table { width: 100%; border-collapse: collapse; font-size: 11px; }
-    .mapping-drawer th, .mapping-drawer td { text-align: left; padding: 7px 8px; border-bottom: 1px solid #eef2f6; }
-    .mapping-drawer th { position: sticky; top: 0; background: #f8fafc; color: #475467; }
-  </style>
+  ::selection{background:rgba(79,179,191,0.35);}
+  ::-webkit-scrollbar{width:8px; height:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--navy-600); border-radius:4px;}
+</style>
 </head>
 <body>
-  <div id="map" aria-label="S-100 OpenLayers 지도"></div>
 
-  <!-- 좌측 사이드바 버튼 영역 -->
-  <nav class="sidebar-nav">
-    
-    <!-- 1. 햄버거 메뉴 (파일 선택 창) -->
-    <section class="control-drawer" id="drawer-files" aria-label="파일 로드 패널">
-      <div class="drawer-handle" title="파일 및 설정">☰</div>
-      <div class="drawer-content">
-        <h1 class="drawer-title">S-100 FC/PC 경량 뷰어</h1>
-        <p class="drawer-subtitle">GML, FC, PC 파일을 선택하여 시각화합니다.</p>
+<svg class="contours" preserveAspectRatio="none" viewBox="0 0 1000 700" xmlns="http://www.w3.org/2000/svg">
+  <g fill="none" stroke="#4fb3bf" stroke-width="1">
+    <path d="M -50,120 C 150,60 350,180 550,110 S 950,60 1050,140" opacity="0.10"/>
+    <path d="M -50,220 C 180,150 380,270 580,200 S 950,150 1050,230" opacity="0.08"/>
+    <path d="M -50,320 C 200,260 400,360 600,300 S 950,250 1050,320" opacity="0.06"/>
+    <path d="M -50,60 C 120,10 320,90 520,40 S 900,10 1050,70" opacity="0.05"/>
+  </g>
+</svg>
 
-        <div class="inputs">
-          <div class="file-input">
-            <label for="sampleFile">1. Sample Data (.xml / .gml)</label>
-            <input type="file" id="sampleFile" accept=".xml,.gml,text/xml,application/xml">
-          </div>
-          <div class="file-input">
-            <label for="fcFile">2. Feature Catalogue (.xml)</label>
-            <input type="file" id="fcFile" accept=".xml,text/xml,application/xml">
-          </div>
-          <div class="file-input">
-            <label for="pcZip">3. Portrayal Catalogue (.zip)</label>
-            <input type="file" id="pcZip" accept=".zip,application/zip">
-          </div>
-        </div>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">S-100 · QEA → FEATURE CATALOGUE</div>
+    <h1>QEA 파일을 <span class="accent">FC 초안</span>으로</h1>
+    <p class="lede">Enterprise Architect <code>.qea</code>(SQLite) 파일을 업로드하면 브라우저에서 바로 파싱해서 정규화된 <code>model.json</code>과 S-100 Ed.5 Feature Catalogue 초안 <code>feature_catalogue_draft.xml</code>을 만들어줍니다. 파일은 서버로 전송되지 않고 전부 로컬에서 처리됩니다.</p>
+  </header>
 
-        <div class="actions">
-          <button id="runButton" type="button">시각화 실행</button>
-          <button id="mappingButton" class="secondary-button" type="button">매핑 보기</button>
-          <span id="status" aria-live="polite">세 파일을 선택해 주세요.</span>
-        </div>
+  <div class="panel">
+    <label class="drop" id="drop" for="fileInput">
+      <input type="file" id="fileInput" accept=".qea,.qeax,.eap,.sqlite,.db">
+      <div class="glyph">⛯</div>
+      <div class="main">.qea 파일을 드래그하거나 클릭해서 선택</div>
+      <div class="sub">t_object / t_attribute 테이블을 읽습니다</div>
+      <div class="filename" id="filename"></div>
+    </label>
 
-        <div class="stats" id="stats" hidden>
-          <div class="stat"><div class="value" id="fcCount">0</div><div class="label">FC</div></div>
-          <div class="stat"><div class="value" id="pcSymbolCount">0</div><div class="label">SVG</div></div>
-          <div class="stat"><div class="value" id="featureCount">0</div><div class="label">Feature</div></div>
-          <div class="stat"><div class="value" id="svgAppliedCount">0</div><div class="label">Point</div></div>
-          <div class="stat"><div class="value" id="fallbackCount">0</div><div class="label">Fallback</div></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- 2. 피처 목록 버튼 (📋 아이콘) -->
-    <section class="control-drawer" id="drawer-features" aria-label="피처 목록 패널">
-      <div class="drawer-handle" title="피처 목록">📋</div>
-      <div class="drawer-content">
-        <div class="feature-list-header">
-          <span>피처 목록 (Feature List)</span>
-          <span style="font-weight:400; font-size:10px; color:#667085;" id="featureListCount">0개</span>
-        </div>
-        <ul class="feature-list" id="featureList">
-          <li class="no-features">No features available</li>
-        </ul>
-      </div>
-    </section>
-
-  </nav>
-
-  <!-- 오른쪽 상단 픽 리포트 패널 -->
-  <aside class="details" id="details" aria-live="polite"></aside>
-
-  <!-- 매핑 결과 하단 패널 -->
-  <section class="mapping-drawer" id="mappingDrawer" aria-label="FeatureType과 SVG 매핑 결과">
-    <div class="mapping-head">
-      <span>FeatureType → Rule → SVG 매핑 결과</span>
-      <button id="mappingClose" class="close-button" type="button">×</button>
+    <div class="actions">
+      <button class="btn-primary" id="runBtn" disabled>변환 실행</button>
+      <button class="btn-ghost" id="resetBtn" style="display:none;">초기화</button>
     </div>
-    <div class="mapping-scroll">
-      <table>
-        <thead><tr><th>FeatureType</th><th>Rule</th><th>심볼 후보</th><th>선택 SVG</th></tr></thead>
-        <tbody id="mappingBody"><tr><td colspan="4">아직 실행하지 않았습니다.</td></tr></tbody>
-      </table>
+    <div class="status" id="status"></div>
+  </div>
+
+  <div class="results" id="results">
+    <div class="stat-row">
+      <div class="stat"><div class="n" id="statFeature">0</div><div class="l">FeatureType</div></div>
+      <div class="stat"><div class="n" id="statComplex">0</div><div class="l">ComplexAttribute</div></div>
+      <div class="stat"><div class="n" id="statEnum">0</div><div class="l">Enumeration</div></div>
+      <div class="stat warn"><div class="n" id="statWarn">0</div><div class="l">Warnings</div></div>
     </div>
-  </section>
 
-  <script>
-    const xmlParser = new DOMParser();
-    const objectUrls = [];
-    let currentLoadedResults = [];
-    let selectedFeature = null;
+    <div class="downloads">
+      <div class="dl-card">
+        <div class="name">model.json</div>
+        <div class="desc">FeatureType / ComplexAttributeType / Enumeration 정규화 모델</div>
+        <button class="btn-ghost" id="dlJson">JSON 다운로드</button>
+      </div>
+      <div class="dl-card">
+        <div class="name">feature_catalogue_draft.xml</div>
+        <div class="desc">S100FC 5.0 네임스페이스 Feature Catalogue 초안</div>
+        <button class="btn-ghost" id="dlXml">XML 다운로드</button>
+      </div>
+    </div>
 
-    const map = new ol.Map({
-      target: 'map',
-      layers: [new ol.layer.Tile({ source: new ol.source.OSM() })],
-      view: new ol.View({ center: ol.proj.fromLonLat([129.0756, 35.1796]), zoom: 11 })
-    });
+    <div class="panel">
+      <div class="tabs">
+        <div class="tab active" data-tab="warn">Warnings</div>
+        <div class="tab" data-tab="json">model.json 미리보기</div>
+        <div class="tab" data-tab="xml">XML 미리보기</div>
+      </div>
+      <div class="tab-panel active" id="panel-warn">
+        <ul class="warnlist" id="warnList"></ul>
+      </div>
+      <div class="tab-panel" id="panel-json">
+        <pre class="code" id="jsonPreview"></pre>
+      </div>
+      <div class="tab-panel" id="panel-xml">
+        <pre class="code" id="xmlPreview"></pre>
+      </div>
+    </div>
+  </div>
 
-    const vectorSource = new ol.source.Vector();
-    const vectorLayer = new ol.layer.Vector({ source: vectorSource });
-    map.addLayer(vectorLayer);
+  <footer>변환 로직은 <code>qea_to_fc_v2</code> 파이썬 스크립트를 그대로 이식했습니다 · SQLite 파싱은 sql.js(WASM)로 브라우저 내에서 실행 · 서버 전송 없음</footer>
+</div>
 
-    /* 기본 스타일 정의
-       렌더링 우선순위: Area < Line < Point/MultiPoint < Highlight
-       → 면 채움이 불투명해져도 포인트 심볼이 폴리곤 아래에 묻히지 않는다. */
-    const RENDER_Z = { area: 10, line: 20, point: 30, highlight: 100 };
+<script src="https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/sql-wasm.js"></script>
+<script>
+(function(){
+  "use strict";
 
-    const fallbackPointStyle = new ol.style.Style({
-      image: new ol.style.Circle({
-        radius: 6,
-        fill: new ol.style.Fill({ color: 'rgba(214, 63, 36, 0.9)' }),
-        stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 })
-      }),
-      zIndex: RENDER_Z.point
-    });
+  // ---------------------------------------------------------------------
+  // Constants (ported from qea_to_fc_v2.py)
+  // ---------------------------------------------------------------------
+  const PRIMITIVE_MAP = {
+    "int":"integer","integer":"integer","long":"integer","short":"integer",
+    "text":"text","string":"text","char":"text","varchar":"text",
+    "bool":"boolean","boolean":"boolean",
+    "real":"real","float":"real","double":"real","decimal":"real","number":"real",
+    "date":"date","datetime":"dateTime","date time":"dateTime","timestamp":"dateTime",
+    "time":"time","uri":"URI","url":"URI","urn":"URN",
+  };
 
-    const lineStyle = new ol.style.Style({
-      stroke: new ol.style.Stroke({ color: 'rgba(92, 96, 99, 0.8)', width: 2 }),
-      zIndex: RENDER_Z.line
-    });
+  const FC_NS = {
+    S100FC:"http://www.iho.int/S100FC/5.0",
+    S100Base:"http://www.iho.int/S100Base/5.0",
+    S100CI:"http://www.iho.int/S100CI/5.0",
+    S100CD:"http://www.iho.int/S100CD/5.0",
+    xsi:"http://www.w3.org/2001/XMLSchema-instance",
+  };
 
-    const areaStyle = new ol.style.Style({
-      stroke: new ol.style.Stroke({ color: 'rgba(92, 96, 99, 0.8)', width: 1 }),
-      fill: new ol.style.Fill({ color: 'rgba(23, 105, 170, 0.03)' }), // 예: 푸른톤 반투명 채우기
-      zIndex: RENDER_Z.area
-    });
+  // ---------------------------------------------------------------------
+  // SQLite loading
+  // ---------------------------------------------------------------------
+  function queryAll(db, sql){
+    const stmt = db.prepare(sql);
+    const rows = [];
+    try{
+      while(stmt.step()) rows.push(stmt.getAsObject());
+    } finally { stmt.free(); }
+    return rows;
+  }
 
-    /* Highlight 스타일 */
-    function getHighlightStyle(feature) {
-      const geomType = feature.getGeometry().getType();
-
-      if (geomType === 'Point' || geomType === 'MultiPoint') {
-        const baseStyle = feature.get('_baseStyle') || fallbackPointStyle;
-        const highlightCircle = new ol.style.Style({
-          image: new ol.style.Circle({
-            radius: 14,
-            fill: new ol.style.Fill({ color: 'rgba(255, 153, 0, 0.25)' }),
-            stroke: new ol.style.Stroke({ color: '#ff6600', width: 2.5 })
-          }),
-          zIndex: RENDER_Z.highlight
-        });
-        return [highlightCircle, baseStyle];
-      } else if (geomType.includes('Line')) {
-        return new ol.style.Style({
-          stroke: new ol.style.Stroke({ color: '#ff6600', width: 4.5 }),
-          zIndex: RENDER_Z.highlight
-        });
-      } else {
-        return new ol.style.Style({
-          stroke: new ol.style.Stroke({ color: '#ff6600', width: 3.5 }),
-          fill: new ol.style.Fill({ color: 'rgba(255, 170, 0, 0.35)' }),
-          zIndex: RENDER_Z.highlight
-        });
-      }
+  function loadQea(db){
+    const objects = {};
+    for(const r of queryAll(db, `
+      SELECT Object_ID, Name, Object_Type, Stereotype, Package_ID, Note, ea_guid
+      FROM t_object
+      WHERE Object_Type IN ('Class','Enumeration')
+      ORDER BY Object_ID
+    `)){
+      objects[r.Object_ID] = r;
     }
 
-    document.getElementById('runButton').addEventListener('click', runVisualizer);
-    document.getElementById('mappingButton').addEventListener('click', () => document.getElementById('mappingDrawer').classList.toggle('open'));
-    document.getElementById('mappingClose').addEventListener('click', () => document.getElementById('mappingDrawer').classList.remove('open'));
-
-    // 지도 클릭 시 피처 선택
-    map.on('singleclick', event => {
-      const picked = map.forEachFeatureAtPixel(event.pixel, feature => feature);
-      selectFeature(picked || null);
-    });
-
-    function selectFeature(feature) {
-      if (selectedFeature) {
-        const originalStyle = selectedFeature.get('_baseStyle');
-        if (originalStyle) selectedFeature.setStyle(originalStyle);
-      }
-
-      selectedFeature = feature;
-
-      if (selectedFeature) {
-        selectedFeature.setStyle(getHighlightStyle(selectedFeature));
-      }
-
-      renderFeatureDetails(selectedFeature);
-      updateFeatureListSelection(selectedFeature);
+    const attrsByObject = {};
+    for(const r of queryAll(db, `
+      SELECT ID, Object_ID, Name, Type, Stereotype, LowerBound, UpperBound,
+             Classifier, Pos, Notes, "Default" AS DefaultValue, IsOrdered, ea_guid
+      FROM t_attribute
+      ORDER BY Object_ID, Pos, ID
+    `)){
+      if(!attrsByObject[r.Object_ID]) attrsByObject[r.Object_ID] = [];
+      attrsByObject[r.Object_ID].push(r);
     }
 
-    function focusFeature(feature) {
-      if (!feature) return;
-      const geometry = feature.getGeometry();
-      if (!geometry) return;
-      const extent = geometry.getExtent();
-      map.getView().fit(extent, { padding: [100, 100, 100, 100], maxZoom: 16, duration: 300 });
+    return {objects, attrsByObject};
+  }
+
+  // ---------------------------------------------------------------------
+  // Model normalization (ported from normalize_model / assign_fc_codes /
+  // collect_simple_declarations)
+  // ---------------------------------------------------------------------
+  function trimOrNull(v){
+    const s = (v===null||v===undefined) ? "" : String(v).trim();
+    return s || null;
+  }
+  function trimStr(v){
+    return (v===null||v===undefined) ? "" : String(v).trim();
+  }
+
+  function normalizeModel(objects, attrsByObject){
+    const warnings = [];
+    const byName = {};
+    for(const o of Object.values(objects)){
+      if(o.Name) byName[o.Name] = o;
     }
 
-    function setStatus(message, kind = '') {
-      const el = document.getElementById('status');
-      el.textContent = message;
-      el.className = kind;
-    }
+    const enums = {};
+    const complexes = {};
+    const features = {};
 
-    function parseXml(text, label) {
-      const doc = xmlParser.parseFromString(text, 'text/xml');
-      const error = doc.getElementsByTagName('parsererror')[0];
-      if (error) throw new Error(`${label} XML 파싱 실패`);
-      return doc;
-    }
-
-    function directChildText(parent, localName) {
-      for (const child of parent.children) {
-        if (child.localName === localName) return child.textContent.trim();
-      }
-      return '';
-    }
-
-    /* ==========================================================================
-     * [CRITICAL / DO NOT REMOVE] S-100 PORTRAYAL CORE
-     * --------------------------------------------------------------------------
-     * 이 구간은 기존 S-129 / S-131 샘플에서 정상 동작이 확인된 핵심 로직이다.
-     * PC ZIP 파싱, Lua/XSLT Rule 연결, SVG 탐색, Geometry 해석, Point/MultiPoint
-     * 심볼 적용이 서로 연결되어 있으므로 일부만 단순화하거나 대체하지 말 것.
-     *
-     * IMPORTANT FOR FUTURE EDITS / AI PROMPTS:
-     * - 프롬프트에 명시적인 변경 지시가 없는 한 이 구간을 절대 삭제하지 말 것.
-     * - 함수 이름이 비슷하다는 이유로 축약 구현으로 교체하지 말 것.
-     * - FeatureType === rule filename 이라고 가정하지 말 것.
-     * - namespace / 대소문자 / 복수 XSLT template / Lua Point 구간 보정 로직을 유지할 것.
-     * - UI 기능(피처 목록, 패널, 선택 효과)을 추가할 때도 이 로직은 그대로 보존할 것.
-     * ========================================================================== */
-
-    function parseFeatureCatalogue(xmlText) {
-      const doc = parseXml(xmlText, 'FC');
-      const map = new Map();
-      const nodes = Array.from(doc.getElementsByTagNameNS('*', 'S100_FC_FeatureType'));
-
-      for (const node of nodes) {
-        const code = directChildText(node, 'code');
-        if (!code) continue;
-        const name = directChildText(node, 'name') || code;
-        const permittedPrimitives = Array.from(node.children)
-          .filter(child => child.localName === 'permittedPrimitives')
-          .map(child => child.textContent.trim())
-          .filter(Boolean);
-        const attributes = Array.from(node.getElementsByTagNameNS('*', 'attributeBinding'))
-          .map(binding => binding.getElementsByTagNameNS('*', 'attribute')[0]?.getAttribute('ref'))
-          .filter(Boolean);
-
-        map.set(code, { code, name, permittedPrimitives, attributes });
-      }
-      return map;
-    }
-
-    /* [DO NOT SIMPLIFY] PC의 symbol/rule 메타데이터와 실제 ZIP 파일을 연결한다.
-       별도 명령이 없으면 삭제/축약/파일명 직접추정 방식으로 대체하지 말 것. */
-    async function parsePortrayalZip(file) {
-      const zip = await JSZip.loadAsync(file);
-      const entries = Object.values(zip.files).filter(entry => !entry.dir);
-
-      const basename = path => path.split('/').pop();
-      const findByBasename = name => entries.find(entry => basename(entry.name).toLowerCase() === name.toLowerCase());
-      const catalogueEntry = findByBasename('portrayal_catalogue.xml');
-      if (!catalogueEntry) throw new Error('PC ZIP 안에서 portrayal_catalogue.xml을 찾을 수 없습니다.');
-
-      const catalogueText = await catalogueEntry.async('text');
-      const catalogueDoc = parseXml(catalogueText, 'Portrayal Catalogue');
-
-      const symbolFiles = new Map();
-      for (const symbol of Array.from(catalogueDoc.getElementsByTagNameNS('*', 'symbol'))) {
-        const id = symbol.getAttribute('id');
-        const fileName = directChildText(symbol, 'fileName');
-        if (id && fileName) symbolFiles.set(id, fileName);
-      }
-
-      // ruleFile id가 항상 FeatureType과 같지는 않으므로 메타데이터로만 보관한다.
-      const ruleFiles = new Map();
-      for (const rule of Array.from(catalogueDoc.getElementsByTagNameNS('*', 'ruleFile'))) {
-        const id = rule.getAttribute('id');
-        const fileName = directChildText(rule, 'fileName');
-        const fileFormat = directChildText(rule, 'fileFormat').toUpperCase();
-        const ruleType = directChildText(rule, 'ruleType');
-        if (id && fileName) ruleFiles.set(id, { id, fileName, fileFormat, ruleType });
-      }
-
-      const dayCssEntry = findByBasename('daySvgStyle.css');
-      const dayCss = dayCssEntry ? await dayCssEntry.async('text') : '';
-
-      const svgUrlsByFilename = new Map();
-      for (const entry of entries.filter(entry => entry.name.toLowerCase().endsWith('.svg'))) {
-        let svgText = await entry.async('text');
-        svgText = svgText.replace(/<\?xml-stylesheet[\s\S]*?\?>/gi, '');
-        if (dayCss) {
-          svgText = svgText.replace(/<svg\b([^>]*)>/i, match => `${match}<style>${dayCss}</style>`);
+    // Enumerations
+    for(const o of Object.values(objects)){
+      if(o.Object_Type !== "Enumeration") continue;
+      const vals = [];
+      const usedCodes = new Set();
+      let nextCode = 1;
+      const attrs = attrsByObject[o.Object_ID] || [];
+      for(const a of attrs){
+        const raw = trimStr(a.DefaultValue);
+        let code = null;
+        if(/^[+-]?\d+$/.test(raw)){
+          const parsed = parseInt(raw, 10);
+          if(parsed >= 1 && parsed <= 65535 && !usedCodes.has(parsed)) code = parsed;
         }
-        const blob = new Blob([svgText], { type: 'image/svg+xml' });
-        const url = URL.createObjectURL(blob);
-        objectUrls.push(url);
-        svgUrlsByFilename.set(basename(entry.name), url);
-      }
-
-      // Lua와 XSLT를 모두 텍스트로만 읽는다. 실행하지 않는다.
-      const ruleTextsByFilename = new Map();
-      for (const entry of entries.filter(entry => /\.(lua|xsl|xslt)$/i.test(entry.name))) {
-        ruleTextsByFilename.set(basename(entry.name), await entry.async('text'));
-      }
-
-      // XSLT는 ruleFile id 대신 xsl:template match를 FeatureType 연결 기준으로 사용한다.
-      const xsltFeatureRules = new Map();
-      for (const [fileName, text] of ruleTextsByFilename.entries()) {
-        if (!/\.(xsl|xslt)$/i.test(fileName)) continue;
-        for (const mapping of extractXsltFeatureMappings(text, fileName)) {
-          const previous = xsltFeatureRules.get(mapping.featureCode);
-          if (!previous) {
-            xsltFeatureRules.set(mapping.featureCode, mapping);
-          } else {
-            // 같은 feature에 template이 여러 개면 심볼 후보를 합친다.
-            previous.candidates = Array.from(new Set([...previous.candidates, ...mapping.candidates]));
-          }
+        if(code === null){
+          while(usedCodes.has(nextCode)) nextCode++;
+          code = nextCode;
+          warnings.push(`Enumeration '${o.Name}' value '${a.Name}' has invalid/missing/duplicate Default='${raw}'; assigned code ${code}.`);
         }
+        usedCodes.add(code);
+        nextCode = Math.max(nextCode, code + 1);
+        vals.push({label: a.Name, code, definition: trimOrNull(a.Notes), guid: a.ea_guid});
       }
-
-      const engines = new Set();
-      for (const name of ruleTextsByFilename.keys()) {
-        if (/\.lua$/i.test(name)) engines.add('Lua');
-        if (/\.(xsl|xslt)$/i.test(name)) engines.add('XSLT');
-      }
-
-      return { symbolFiles, ruleFiles, svgUrlsByFilename, ruleTextsByFilename, xsltFeatureRules, engines };
+      enums[o.Name] = {name:o.Name, guid:o.ea_guid, definition: trimOrNull(o.Note), values: vals};
     }
 
-    function stripLuaComments(text) {
-      return text
-        .replace(/--\[\[[\s\S]*?\]\]--/g, '')
-        .replace(/--\[\[[\s\S]*?\]\]/g, '')
-        .replace(/--[^\r\n]*/g, '');
-    }
-
-    /* [DO NOT SIMPLIFY] Lua 전체가 아니라 Point primitive 구간을 우선 해석한다.
-       주석 제거와 Point 구간 분리는 잘못된 심볼 후보 선택 방지에 필요하다. */
-    function extractPointInstructionCandidates(luaText) {
-      if (!luaText) return [];
-      const text = stripLuaComments(luaText);
-      const primitiveRegex = /\b(?:if|elseif)\s+feature\.PrimitiveType\s*==\s*PrimitiveType\.(Point|Curve|Surface)\b[^\n]*then/g;
-      const primitiveMatches = Array.from(text.matchAll(primitiveRegex));
-      const pointSegments = [];
-
-      for (let i = 0; i < primitiveMatches.length; i++) {
-        if (primitiveMatches[i][1] !== 'Point') continue;
-        const start = primitiveMatches[i].index;
-        const end = i + 1 < primitiveMatches.length ? primitiveMatches[i + 1].index : text.length;
-        pointSegments.push(text.slice(start, end));
-      }
-
-      const target = pointSegments.length ? pointSegments.join('\n') : text;
-      const occurrences = [];
-      const regex = /PointInstruction:+([A-Za-z0-9_]+)/g;
-      let match;
-      while ((match = regex.exec(target)) !== null) {
-        if (match[1]) occurrences.push(match[1]);
-      }
-      return occurrences;
-    }
-
-    function featureCodesFromXsltMatch(matchExpr) {
-      if (!matchExpr) return [];
-      const codes = [];
-      for (const branch of matchExpr.split('|')) {
-        const withoutPredicates = branch.replace(/\[[\s\S]*?\]/g, '').trim();
-        const steps = withoutPredicates.split('/').map(v => v.trim()).filter(Boolean);
-        if (!steps.length) continue;
-        let token = steps[steps.length - 1];
-        if (token === '*' || token.startsWith('@') || token.includes('(')) continue;
-        token = token.split(':').pop();
-        if (/^[A-Za-z_][A-Za-z0-9_.-]*$/.test(token)) codes.push(token);
-      }
-      return Array.from(new Set(codes));
-    }
-
-    function literalFromXsltSelect(selectValue) {
-      if (!selectValue) return '';
-      const match = selectValue.trim().match(/^['"]([^'"]+)['"]$/);
-      return match ? match[1].trim() : '';
-    }
-
-    function extractXsltSymbolCandidates(template) {
-      const candidates = [];
-
-      // S-129처럼 named template에 symbolReference를 전달하는 패턴.
-      for (const param of Array.from(template.getElementsByTagNameNS('*', 'with-param'))) {
-        if ((param.getAttribute('name') || '').toLowerCase() !== 'symbolreference') continue;
-        const value = literalFromXsltSelect(param.getAttribute('select')) || param.textContent.trim();
-        if (value) candidates.push(value);
-      }
-
-      // 다른 XSLT PC에서 직접 symbolReference 요소를 만드는 단순 패턴도 허용.
-      for (const node of Array.from(template.getElementsByTagNameNS('*', 'symbolReference'))) {
-        const value = node.getAttribute('reference') || node.textContent.trim();
-        if (value && !value.includes('$')) candidates.push(value);
-      }
-
-      // <symbol reference="XXXX"/> 형태의 정적 reference.
-      for (const node of Array.from(template.getElementsByTagNameNS('*', 'symbol'))) {
-        const value = node.getAttribute('reference');
-        if (value && !value.includes('$')) candidates.push(value);
-      }
-
-      return Array.from(new Set(candidates));
-    }
-
-    /* [DO NOT SIMPLIFY] namespace, union match(|), predicate를 포함한 XSLT match를
-       FeatureType local name으로 정규화한다. 별도 명령 없이는 제거하지 말 것. */
-    function extractXsltFeatureMappings(xslText, fileName) {
-      if (!xslText) return [];
-      let doc;
-      try {
-        doc = parseXml(xslText, `XSLT ${fileName}`);
-      } catch (error) {
-        console.warn(error.message);
-        return [];
-      }
-
-      const mappings = [];
-      for (const template of Array.from(doc.getElementsByTagNameNS('*', 'template'))) {
-        const matchExpr = template.getAttribute('match');
-        if (!matchExpr) continue;
-        const featureCodes = featureCodesFromXsltMatch(matchExpr);
-        const candidates = extractXsltSymbolCandidates(template);
-        for (const featureCode of featureCodes) {
-          mappings.push({ featureCode, fileName, matchExpr, candidates });
-        }
-      }
-      return mappings;
-    }
-
-    function getCaseInsensitiveEntry(map, fileName) {
-      const lower = (fileName || '').toLowerCase();
-      return Array.from(map.entries()).find(([name]) => name.toLowerCase() === lower) || null;
-    }
-
-    function getLuaRuleForFeature(featureCode, pc) {
-      const meta = pc.ruleFiles.get(featureCode);
-      let fileName = meta?.fileName && /\.lua$/i.test(meta.fileName) ? meta.fileName : `${featureCode}.lua`;
-      let luaText = pc.ruleTextsByFilename.get(fileName);
-
-      if (!luaText) {
-        const match = getCaseInsensitiveEntry(pc.ruleTextsByFilename, fileName);
-        if (match && /\.lua$/i.test(match[0])) {
-          fileName = match[0];
-          luaText = match[1];
-        }
-      }
-      return { fileName, luaText: luaText || '' };
-    }
-
-    function getRuleForFeature(featureCode, pc) {
-      const xslt = pc.xsltFeatureRules.get(featureCode);
-      if (xslt) return { fileName: xslt.fileName, engine: 'XSLT' };
-
-      const { fileName, luaText } = getLuaRuleForFeature(featureCode, pc);
-      if (luaText) return { fileName, engine: 'Lua' };
-
-      const meta = pc.ruleFiles.get(featureCode);
-      if (meta) return { fileName: meta.fileName, engine: meta.fileFormat || '-' };
-      return { fileName: '', engine: '' };
-    }
-
-    /* [DO NOT SIMPLIFY] SVG 파일명 대소문자 차이와 symbol id → filename 매핑을 보정한다. */
-    function chooseExistingSvg(candidates, pc, preferLast = false) {
-      const ordered = preferLast ? [...candidates].reverse() : candidates;
-      for (const symbolId of ordered) {
-        const svgFile = pc.symbolFiles.get(symbolId) || `${symbolId}.svg`;
-        const exactUrl = pc.svgUrlsByFilename.get(svgFile);
-        if (exactUrl) return { symbolId, svgFile, svgUrl: exactUrl };
-        const caseMatch = getCaseInsensitiveEntry(pc.svgUrlsByFilename, svgFile);
-        if (caseMatch) return { symbolId, svgFile: caseMatch[0], svgUrl: caseMatch[1] };
-      }
-      return { symbolId: '', svgFile: '', svgUrl: '' };
-    }
-
-    /* [CRITICAL / DO NOT REMOVE] FeatureType → Rule → Symbol → SVG 최종 연결부.
-       프롬프트에서 명시적으로 변경을 요구하지 않는 한 절대 삭제/단순화하지 말 것. */
-    function resolvePointSymbol(featureCode, pc) {
-      // XSLT: xsl:template match="FeatureType" 안의 symbolReference만 정적으로 추출.
-      const xslt = pc.xsltFeatureRules.get(featureCode);
-      if (xslt) {
-        const candidates = xslt.candidates || [];
-        const chosen = chooseExistingSvg(candidates, pc, false);
-        return {
-          engine: 'XSLT',
-          ruleFile: xslt.fileName,
-          candidates,
-          ...chosen
-        };
-      }
-
-      // Lua: FeatureType rule에서 Point primitive 구간의 PointInstruction만 정적으로 추출.
-      const { fileName, luaText } = getLuaRuleForFeature(featureCode, pc);
-      const occurrences = extractPointInstructionCandidates(luaText);
-      const candidates = Array.from(new Set(occurrences));
-      // 조건을 실행하지 않으므로 기존 S-131 MVP처럼 뒤쪽 default/else 계열을 우선한다.
-      const chosen = chooseExistingSvg(occurrences, pc, true);
-      return {
-        engine: luaText ? 'Lua' : '',
-        ruleFile: luaText ? fileName : '',
-        candidates,
-        ...chosen
+    function parseMember(a){
+      const rawType = trimStr(a.Type);
+      const ast = trimStr(a.Stereotype);
+      const lower = (a.LowerBound===null||a.LowerBound===undefined||a.LowerBound==="") ? "1" : a.LowerBound;
+      const upper = (a.UpperBound===null||a.UpperBound===undefined||a.UpperBound==="") ? "1" : a.UpperBound;
+      const base = {
+        name: a.Name,
+        rawType: rawType,
+        stereotype: ast || null,
+        multiplicity: {lower:String(lower), upper:String(upper)},
+        sequential: !!a.IsOrdered,
+        guid: a.ea_guid,
+        definition: trimOrNull(a.Notes),
       };
-    }
 
-    function axisOrderFor(node, a, b) {
-      if (Math.abs(a) > 90 && Math.abs(b) <= 90) return 'lonlat';
-      if (Math.abs(b) > 90 && Math.abs(a) <= 90) return 'latlon';
-
-      let current = node;
-      while (current && current.nodeType === 1) {
-        const axis = current.getAttribute('axisLabels');
-        if (axis) {
-          const normalized = axis.toLowerCase().replace(/[,/]+/g, ' ').trim();
-          const parts = normalized.split(/\s+/);
-          const first = parts[0] || '';
-          const second = parts[1] || '';
-          if ((first.includes('lat') || first.includes('north')) && (second.includes('lon') || second.includes('east'))) return 'latlon';
-          if ((first.includes('lon') || first.includes('east')) && (second.includes('lat') || second.includes('north'))) return 'lonlat';
-        }
-        const srs = current.getAttribute('srsName') || '';
-        if (/CRS84/i.test(srs)) return 'lonlat';
-        if (/4326/i.test(srs)) return 'latlon';
-        current = current.parentElement;
+      const target = byName[rawType];
+      if(target && target.Object_Type === "Enumeration"){
+        return Object.assign({}, base, {kind:"EnumerationAttribute", type:rawType});
       }
-      return 'latlon'; // S-100 GML의 일반적인 EPSG:4326 축 순서를 기본값으로 사용
-    }
-
-    function numbersFromNode(node) {
-      return node.textContent.trim().split(/[\s,]+/).map(Number).filter(Number.isFinite);
-    }
-
-    function coordinatePairs(node) {
-      const values = numbersFromNode(node);
-      if (values.length < 2) return [];
-      const declaredDim = Number(node.getAttribute('srsDimension') || node.parentElement?.getAttribute('srsDimension') || 2);
-      const dim = Number.isFinite(declaredDim) && declaredDim >= 2 ? declaredDim : 2;
-      const pairs = [];
-      for (let i = 0; i + 1 < values.length; i += dim) {
-        const a = values[i];
-        const b = values[i + 1];
-        const order = axisOrderFor(node, a, b);
-        const lon = order === 'latlon' ? b : a;
-        const lat = order === 'latlon' ? a : b;
-        if (Math.abs(lat) <= 90 && Math.abs(lon) <= 180) pairs.push(ol.proj.fromLonLat([lon, lat]));
-      }
-      return pairs;
-    }
-
-    function findDescendantsByLocalName(root, names) {
-      const wanted = new Set(names);
-      return Array.from(root.getElementsByTagName('*')).filter(el => wanted.has(el.localName));
-    }
-
-    function findFirstGeometryElement(featureEl) {
-      const geometryNames = new Set(['Point', 'Curve', 'LineString', 'Surface', 'Polygon', 'MultiPoint', 'MultiCurve', 'MultiSurface']);
-      return Array.from(featureEl.getElementsByTagName('*')).find(el => geometryNames.has(el.localName)) || null;
-    }
-
-    function closeRing(coords) {
-      if (coords.length < 3) return coords;
-      const first = coords[0];
-      const last = coords[coords.length - 1];
-      if (first[0] !== last[0] || first[1] !== last[1]) return [...coords, first.slice()];
-      return coords;
-    }
-
-    function parsePointGeometry(geomEl) {
-      const pos = findDescendantsByLocalName(geomEl, ['pos'])[0];
-      if (!pos) return null;
-      const coords = coordinatePairs(pos);
-      return coords[0] ? new ol.geom.Point(coords[0]) : null;
-    }
-
-    function parseLineGeometry(geomEl) {
-      const posLists = findDescendantsByLocalName(geomEl, ['posList']);
-      if (posLists.length) {
-        const coords = coordinatePairs(posLists[0]);
-        return coords.length >= 2 ? new ol.geom.LineString(coords) : null;
-      }
-      const coords = findDescendantsByLocalName(geomEl, ['pos']).flatMap(coordinatePairs);
-      return coords.length >= 2 ? new ol.geom.LineString(coords) : null;
-    }
-
-    function parsePolygonCoordinates(geomEl) {
-      const rings = findDescendantsByLocalName(geomEl, ['LinearRing']);
-      const result = [];
-
-      if (rings.length) {
-        for (const ring of rings) {
-          const posList = findDescendantsByLocalName(ring, ['posList'])[0];
-          let coords = posList ? coordinatePairs(posList) : findDescendantsByLocalName(ring, ['pos']).flatMap(coordinatePairs);
-          coords = closeRing(coords);
-          if (coords.length >= 4) result.push(coords);
-        }
-      } else {
-        const posList = findDescendantsByLocalName(geomEl, ['posList'])[0];
-        if (posList) {
-          const coords = closeRing(coordinatePairs(posList));
-          if (coords.length >= 4) result.push(coords);
-        }
-      }
-      return result;
-    }
-
-    /* [DO NOT SIMPLIFY] Point/Curve/Surface/Multi* 타입을 실제 GML geometry 요소로 판별한다.
-       pos/posList 개수만으로 Polygon/Line을 추측하는 단순 구현으로 되돌리지 말 것. */
-    function parseGeometry(featureEl) {
-      const geomEl = findFirstGeometryElement(featureEl);
-      if (!geomEl) return null;
-
-      if (geomEl.localName === 'Point') return parsePointGeometry(geomEl);
-      if (geomEl.localName === 'Curve' || geomEl.localName === 'LineString') return parseLineGeometry(geomEl);
-      if (geomEl.localName === 'Surface' || geomEl.localName === 'Polygon') {
-        const rings = parsePolygonCoordinates(geomEl);
-        return rings.length ? new ol.geom.Polygon(rings) : null;
-      }
-      if (geomEl.localName === 'MultiPoint') {
-        const points = findDescendantsByLocalName(geomEl, ['Point']).map(parsePointGeometry).filter(Boolean).map(g => g.getCoordinates());
-        return points.length ? new ol.geom.MultiPoint(points) : null;
-      }
-      if (geomEl.localName === 'MultiCurve') {
-        const lines = findDescendantsByLocalName(geomEl, ['Curve', 'LineString']).map(parseLineGeometry).filter(Boolean).map(g => g.getCoordinates());
-        return lines.length ? new ol.geom.MultiLineString(lines) : null;
-      }
-      if (geomEl.localName === 'MultiSurface') {
-        const polygons = findDescendantsByLocalName(geomEl, ['Surface', 'Polygon']).map(parsePolygonCoordinates).filter(r => r.length);
-        return polygons.length ? new ol.geom.MultiPolygon(polygons) : null;
-      }
-      return null;
-    }
-
-    function isInsideGeometry(node, featureEl) {
-      const geometryNames = new Set(['Point', 'Curve', 'LineString', 'Surface', 'Polygon', 'MultiPoint', 'MultiCurve', 'MultiSurface', 'LinearRing', 'pos', 'posList']);
-      let current = node;
-      while (current && current !== featureEl) {
-        if (geometryNames.has(current.localName)) return true;
-        current = current.parentElement;
-      }
-      return false;
-    }
-
-    function collectFeatureAttributes(featureEl) {
-      const ignored = new Set(['boundedBy', 'geometry', 'location']);
-      const attributes = {};
-      const descendants = Array.from(featureEl.getElementsByTagName('*'));
-
-      for (const el of descendants) {
-        if (isInsideGeometry(el, featureEl)) continue;
-        if (ignored.has(el.localName)) continue;
-        if (el.children.length > 0) continue;
-        const value = el.textContent.trim();
-        if (!value) continue;
-        const key = el.localName;
-        if (!attributes[key]) attributes[key] = [];
-        if (!attributes[key].includes(value)) attributes[key].push(value);
-      }
-      return attributes;
-    }
-
-    /* [CRITICAL / DO NOT REMOVE] 실제 feature에 portrayal 결과를 적용하는 구간.
-       Point뿐 아니라 MultiPoint도 PC 심볼 적용 대상이다. */
-    function parseSampleFeatures(xmlText, featureCatalogue, pc) {
-      const doc = parseXml(xmlText, 'Sample Data');
-      const allElements = Array.from(doc.getElementsByTagName('*'));
-      const featureElements = allElements.filter(el => featureCatalogue.has(el.localName));
-      const results = [];
-
-      for (const featureEl of featureElements) {
-        const code = featureEl.localName;
-        const fc = featureCatalogue.get(code);
-        const geometry = parseGeometry(featureEl);
-        if (!geometry) continue;
-
-        const id = featureEl.getAttribute('gml:id') || featureEl.getAttribute('id') || featureEl.getAttributeNS('http://www.opengis.net/gml/3.2', 'id') || '';
-        const attrs = collectFeatureAttributes(featureEl);
-        const olFeature = new ol.Feature({ geometry });
-
-        const baseRule = getRuleForFeature(code, pc);
-        let portrayal = { engine: baseRule.engine || '', ruleFile: baseRule.fileName, candidates: [], symbolId: '', svgFile: '', svgUrl: '' };
-        const geometryType = geometry.getType();
-        const isPointLike = geometryType === 'Point' || geometryType === 'MultiPoint';
-
-        if (isPointLike) {
-          portrayal = resolvePointSymbol(code, pc);
-          if (portrayal.svgUrl) {
-            olFeature.setStyle(new ol.style.Style({
-              image: new ol.style.Icon({
-                src: portrayal.svgUrl,
-                scale: 1.25,
-                anchor: [0.5, 0.5],
-                anchorXUnits: 'fraction',
-                anchorYUnits: 'fraction'
-              }),
-              zIndex: RENDER_Z.point
-            }));
-          } else {
-            olFeature.setStyle(fallbackPointStyle);
+      if(target && target.Object_Type === "Class"){
+        const targetSt = trimStr(target.Stereotype);
+        if(targetSt === "ComplexAttributeType" || ast === "ComplexAttributeType"){
+          if(targetSt !== "ComplexAttributeType"){
+            warnings.push(`'${rawType}' has no ComplexAttributeType stereotype on t_object; inferred from referencing attribute '${a.Name}'.`);
           }
-        } else if (geometryType.includes('Line')) {
-          olFeature.setStyle(lineStyle);
-        } else {
-          olFeature.setStyle(areaStyle);
+          return Object.assign({}, base, {kind:"ComplexAttribute", type:rawType});
         }
+      }
+      if(ast === "ComplexAttributeType" && rawType){
+        warnings.push(`Complex attribute '${a.Name}' references missing/unknown class '${rawType}'.`);
+        return Object.assign({}, base, {kind:"ComplexAttribute", type:rawType, unresolved:true});
+      }
+      const low = rawType.toLowerCase();
+      if(PRIMITIVE_MAP[low]){
+        return Object.assign({}, base, {kind:"SimpleAttribute", valueType:PRIMITIVE_MAP[low]});
+      }
+      if(enums[rawType]){
+        return Object.assign({}, base, {kind:"EnumerationAttribute", type:rawType});
+      }
+      warnings.push(`Unknown attribute type '${rawType}' on '${a.Name}', treated as text.`);
+      return Object.assign({}, base, {kind:"SimpleAttribute", valueType:"text", unresolvedRawType:rawType});
+    }
 
-        // 피처 목록/지도 선택 highlight 해제 시 원래 portrayal 스타일을 정확히 복원한다.
-        // [DO NOT REMOVE] UI 선택 기능을 수정하더라도 이 base style 저장은 유지할 것.
-        olFeature.set('_baseStyle', olFeature.getStyle());
+    const referencedComplexNames = new Set();
+    for(const alist of Object.values(attrsByObject)){
+      for(const a of alist){
+        if(trimStr(a.Stereotype) === "ComplexAttributeType" && a.Type){
+          referencedComplexNames.add(trimStr(a.Type));
+        }
+      }
+    }
 
-        const meta = {
-          id,
-          code,
-          name: fc?.name || code,
-          geometryType,
-          permittedPrimitives: fc?.permittedPrimitives || [],
-          attributes: attrs,
-          portrayal
+    for(const o of Object.values(objects)){
+      if(o.Object_Type !== "Class") continue;
+      const st = trimStr(o.Stereotype);
+      if(st === "ComplexAttributeType" || referencedComplexNames.has(o.Name)){
+        if(st !== "ComplexAttributeType"){
+          warnings.push(`'${o.Name}' inferred as ComplexAttributeType because it is referenced as such.`);
+        }
+        complexes[o.Name] = {
+          name:o.Name, guid:o.ea_guid, definition:trimOrNull(o.Note),
+          inferred: st !== "ComplexAttributeType",
+          attributes: (attrsByObject[o.Object_ID]||[]).map(parseMember),
         };
-        olFeature.set('_meta', meta);
-        results.push({ olFeature, meta });
       }
-      return results;
     }
 
-    /* 픽 리포트 (우측 상단) */
-    function renderFeatureDetails(feature) {
-      const box = document.getElementById('details');
-      if (!feature) {
-        box.classList.remove('open');
-        return;
+    for(const o of Object.values(objects)){
+      if(o.Object_Type === "Class" && trimStr(o.Stereotype) === "FeatureType"){
+        features[o.Name] = {
+          name:o.Name, guid:o.ea_guid, definition:trimOrNull(o.Note),
+          attributes:(attrsByObject[o.Object_ID]||[]).map(parseMember),
+        };
       }
-
-      const meta = feature.get('_meta');
-      box.innerHTML = `
-        <div class="details-head">
-          <div>
-            <span style="font-size:10px; font-weight:800; color:#ff6600;">SELECTED FEATURE</span>
-            <h2 style="margin-top:2px;">${escapeHtml(meta.name)}</h2>
-          </div>
-          <div class="details-head-actions">
-            <button class="focus-button" id="detailsFocus" type="button" title="이 피처로 확대" aria-label="이 피처로 확대">
-              <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="11" cy="11" r="6" fill="none" stroke="currentColor" stroke-width="2"></circle>
-                <path d="M16 16l5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
-              </svg>
-            </button>
-            <button class="close-button" id="detailsClose" type="button">×</button>
-          </div>
-        </div>
-        <dl class="kv">
-          <dt>Code</dt><dd><span class="badge">${escapeHtml(meta.code)}</span></dd>
-          <dt>gml:id</dt><dd><strong>${escapeHtml(meta.id)}</strong></dd>
-          <dt>Geometry</dt><dd>${escapeHtml(meta.geometryType)}</dd>
-          <dt>Rule File</dt><dd>${escapeHtml(meta.portrayal.ruleFile || '-')}</dd>
-          <dt>Symbol ID</dt><dd>${escapeHtml(meta.portrayal.symbolId || '-')}</dd>
-          <dt>SVG File</dt><dd>${escapeHtml(meta.portrayal.svgFile || '-')}</dd>
-        </dl>
-      `;
-      box.classList.add('open');
-      document.getElementById('detailsFocus').addEventListener('click', () => focusFeature(feature));
-      document.getElementById('detailsClose').addEventListener('click', () => selectFeature(null));
     }
 
-    /* 피처 목록 패널 UI 갱신 (📋 아이콘 창)
-       NOTE: 이 UI 기능은 위 S-100 PORTRAYAL CORE와 독립적이다.
-       목록 기능을 수정할 때 portrayal/rule/svg/geometry 핵심 로직을 삭제하거나 단순화하지 말 것. */
-    function renderFeatureList(results) {
-      const listEl = document.getElementById('featureList');
-      const countEl = document.getElementById('featureListCount');
+    const model = {
+      modelVersion:"qea-fc-mvp-0.2",
+      featureTypes: Object.values(features),
+      complexAttributeTypes: Object.values(complexes),
+      enumerations: Object.values(enums),
+      warnings,
+    };
+    assignFcCodes(model);
+    return model;
+  }
 
-      currentLoadedResults = results;
-      countEl.textContent = `${results.length}개`;
+  function safeCode(raw){
+    let s = (raw||"").replace(/[^A-Za-z0-9_]/g,"_");
+    s = s.replace(/_+/g,"_").replace(/^_+|_+$/g,"");
+    if(!s) s = "unnamed";
+    if(!/^[A-Za-z]/.test(s)) s = "A_" + s;
+    return s;
+  }
 
-      if (!results || results.length === 0) {
-        listEl.innerHTML = '<li class="no-features">No features available</li>';
-        return;
-      }
+  function assignFcCodes(model){
+    const warnings = model.warnings;
+    const attributeUsed = new Set();
+    const attributeNameToCode = {};
 
-      listEl.innerHTML = results.map((res, index) => `
-        <li class="feature-item" data-index="${index}">
-          <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-            <span class="feature-item-code">${escapeHtml(res.meta.code)}</span>
-            <span style="font-size:10px; color:#667085; margin-left:4px;">(${escapeHtml(res.meta.id)})</span>
-          </div>
-          <span class="feature-item-type">${escapeHtml(res.meta.geometryType)}</span>
-        </li>
-      `).join('');
-
-      listEl.querySelectorAll('.feature-item').forEach(item => {
-        item.addEventListener('click', () => {
-          const idx = parseInt(item.getAttribute('data-index'), 10);
-          if (currentLoadedResults[idx]) {
-            selectFeature(currentLoadedResults[idx].olFeature);
-          }
-        });
-      });
+    function reserveAttribute(name){
+      if(Object.prototype.hasOwnProperty.call(attributeNameToCode, name)) return attributeNameToCode[name];
+      const base = safeCode(name);
+      let code = base, i = 2;
+      while(attributeUsed.has(code)){ code = `${base}_${i}`; i++; }
+      attributeUsed.add(code);
+      attributeNameToCode[name] = code;
+      if(code !== name) warnings.push(`FC attribute code '${name}' normalized to '${code}' to satisfy StringCode pattern/uniqueness.`);
+      return code;
     }
 
-    function updateFeatureListSelection(selectedOlFeature) {
-      document.querySelectorAll('.feature-item').forEach(item => item.classList.remove('selected'));
-      if (!selectedOlFeature) return;
+    const owners1 = [...model.featureTypes, ...model.complexAttributeTypes];
+    for(const owner of owners1){
+      for(const a of owner.attributes){
+        if(a.kind === "SimpleAttribute") reserveAttribute(a.name);
+      }
+    }
+    for(const e of model.enumerations) e.fcCode = reserveAttribute(e.name);
+    for(const c of model.complexAttributeTypes) c.fcCode = reserveAttribute(c.name);
 
-      const idx = currentLoadedResults.findIndex(r => r.olFeature === selectedOlFeature);
-      if (idx !== -1) {
-        const activeItem = document.querySelector(`.feature-item[data-index="${idx}"]`);
-        if (activeItem) {
-          activeItem.classList.add('selected');
-          activeItem.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    const featureUsed = new Set();
+    for(const f of model.featureTypes){
+      const base = safeCode(f.name);
+      let code = base, i = 2;
+      while(featureUsed.has(code)){ code = `${base}_${i}`; i++; }
+      featureUsed.add(code);
+      f.fcCode = code;
+      if(code !== f.name) warnings.push(`FeatureType code '${f.name}' normalized to '${code}'.`);
+    }
+
+    for(const owner of owners1){
+      for(const a of owner.attributes){
+        if(a.kind === "SimpleAttribute"){
+          a.fcRef = attributeNameToCode[a.name];
+        } else if(a.kind === "EnumerationAttribute" || a.kind === "ComplexAttribute"){
+          a.fcRef = Object.prototype.hasOwnProperty.call(attributeNameToCode, a.type)
+            ? attributeNameToCode[a.type]
+            : safeCode(a.type || a.name);
         }
       }
     }
+  }
 
-    function escapeHtml(value) {
-      return String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+  function collectSimpleDeclarations(model){
+    const simple = {};
+    const warnings = model.warnings;
+    function visit(attrs){
+      for(const a of attrs){
+        if(a.kind !== "SimpleAttribute") continue;
+        const code = a.fcRef;
+        const vt = a.valueType;
+        if(simple[code] && simple[code].valueType !== vt){
+          warnings.push(`SimpleAttribute '${a.name}' type conflict: ${simple[code].valueType} vs ${vt}; first kept.`);
+          continue;
+        }
+        if(!simple[code]){
+          simple[code] = {name:a.name, code, valueType:vt, definition:a.definition};
+        } else if(!simple[code].definition && a.definition){
+          simple[code].definition = a.definition;
+        }
+      }
+    }
+    for(const f of model.featureTypes) visit(f.attributes);
+    for(const c of model.complexAttributeTypes) visit(c.attributes);
+    return simple;
+  }
+
+  function definitionOrPlaceholder(v){
+    const s = (v===null||v===undefined) ? "" : String(v).trim();
+    return s || "-";
+  }
+
+  // ---------------------------------------------------------------------
+  // XML tree builder + serializer (ports xml.etree usage in build_fc_xml)
+  // ---------------------------------------------------------------------
+  function el(tag, attribs){ return {tag, attribs: attribs||{}, children:[], text:undefined}; }
+  function sub(parent, prefix, local, text, attribs){
+    const e = el(`${prefix}:${local}`, attribs);
+    if(text !== undefined && text !== null) e.text = String(text);
+    parent.children.push(e);
+    return e;
+  }
+
+  function addMult(parent, m){
+    const mult = sub(parent, "S100FC", "multiplicity");
+    sub(mult, "S100Base", "lower", (m.lower===undefined||m.lower===null) ? "1" : m.lower);
+    const up = String((m.upper===undefined||m.upper===null) ? "1" : m.upper).trim();
+    if(up === "*" || up === "-1" || up === "unbounded"){
+      sub(mult, "S100Base", "upper", undefined, {"xsi:nil":"true","infinite":"true"});
+    } else {
+      sub(mult, "S100Base", "upper", up, {"xsi:nil":"false","infinite":"false"});
+    }
+  }
+
+  function addItemFields(parent, name, code, definition){
+    sub(parent, "S100FC", "name", name);
+    sub(parent, "S100FC", "definition", definitionOrPlaceholder(definition));
+    sub(parent, "S100FC", "code", code);
+  }
+
+  function addAttributeBinding(parent, tagName, attr, seenRefs, warnings, ownerName, enumValuesByCode){
+    const ref = attr.fcRef;
+    if(seenRefs.has(ref)){
+      warnings.push(`Duplicate binding ref '${ref}' in '${ownerName}' skipped in XML to satisfy XSD uniqueness constraint.`);
+      return;
+    }
+    seenRefs.add(ref);
+    const bind = sub(parent, "S100FC", tagName, undefined, {sequential: attr.sequential ? "true" : "false"});
+    addMult(bind, attr.multiplicity);
+
+    if(attr.kind === "EnumerationAttribute"){
+      const values = (enumValuesByCode && enumValuesByCode[ref]) || [];
+      if(values.length){
+        const permitted = sub(bind, "S100FC", "permittedValues");
+        for(const v of values) sub(permitted, "S100FC", "value", v);
+      } else {
+        warnings.push(`Enumeration binding '${ref}' in '${ownerName}' has no listed values; permittedValues omitted.`);
+      }
+    }
+    sub(bind, "S100FC", "attribute", undefined, {ref});
+  }
+
+  function addMinimalProducer(root, producerName){
+    const producer = sub(root, "S100FC", "producer");
+    sub(producer, "S100CI", "role", "contributor");
+    const party = sub(producer, "S100CI", "party");
+    const org = sub(party, "S100CI", "CI_Organisation");
+    sub(org, "S100CI", "name", producerName || "-");
+  }
+
+  function buildFcXml(model, meta){
+    meta = meta || {};
+    const warnings = model.warnings;
+    const simple = collectSimpleDeclarations(model);
+    const enumValuesByCode = {};
+    for(const e of model.enumerations){
+      enumValuesByCode[e.fcCode] = (e.values||[]).map(v=>v.code);
     }
 
-    function renderMapping(results) {
-      const body = document.getElementById('mappingBody');
-      const unique = new Map();
-      results.forEach(r => unique.set(r.meta.code, r.meta));
+    const root = el("S100FC:S100_FC_FeatureCatalogue", {
+      "xmlns:S100FC": FC_NS.S100FC,
+      "xmlns:S100Base": FC_NS.S100Base,
+      "xmlns:S100CI": FC_NS.S100CI,
+      "xmlns:S100CD": FC_NS.S100CD,
+      "xmlns:xsi": FC_NS.xsi,
+      "xsi:schemaLocation": "http://www.iho.int/S100FC/5.0 https://schemas.s100dev.net/schemas/S100/5.0.0/S100FC/20220610/S100FC.xsd",
+    });
 
-      if (!unique.size) {
-        body.innerHTML = '<tr><td colspan="4">표시할 피처가 없습니다.</td></tr>';
-        return;
+    sub(root, "S100FC", "name", meta.name || "QEA-derived draft");
+    sub(root, "S100FC", "scope", meta.scope || "Draft generated directly from Enterprise Architect QEA");
+    sub(root, "S100FC", "versionNumber", meta.versionNumber || "0.2");
+    sub(root, "S100FC", "versionDate", meta.versionDate || new Date().toISOString().slice(0,10));
+    sub(root, "S100FC", "productId", meta.productId || "S-999");
+    addMinimalProducer(root, meta.producerName);
+
+    if(Object.keys(simple).length || model.enumerations.length){
+      const wrap = sub(root, "S100FC", "S100_FC_SimpleAttributes");
+      for(const s of Object.values(simple)){
+        const sa = sub(wrap, "S100FC", "S100_FC_SimpleAttribute");
+        addItemFields(sa, s.name, s.code, s.definition);
+        sub(sa, "S100FC", "valueType", s.valueType);
       }
-
-      body.innerHTML = Array.from(unique.values()).map(meta => `
-        <tr>
-          <td><strong>${escapeHtml(meta.code)}</strong></td>
-          <td>${escapeHtml(meta.portrayal.ruleFile || '-')}</td>
-          <td>${escapeHtml(meta.portrayal.candidates.join(', ') || '-')}</td>
-          <td>${escapeHtml(meta.portrayal.svgFile || 'fallback')}</td>
-        </tr>
-      `).join('');
-    }
-
-    async function runVisualizer() {
-      const sampleFile = document.getElementById('sampleFile').files[0];
-      const fcFile = document.getElementById('fcFile').files[0];
-      const pcZipFile = document.getElementById('pcZip').files[0];
-      const button = document.getElementById('runButton');
-
-      if (!sampleFile || !fcFile || !pcZipFile) {
-        setStatus('3개 파일을 모두 선택하세요.', 'error');
-        return;
-      }
-
-      button.disabled = true;
-      setStatus('파싱 중...');
-      vectorSource.clear();
-      selectFeature(null);
-
-      // 이전 실행에서 만든 Blob URL을 정리한다. 새 PC를 읽은 뒤의 SVG URL은 새로 생성된다.
-      for (const url of objectUrls.splice(0)) URL.revokeObjectURL(url);
-
-      try {
-        const [sampleText, fcText] = await Promise.all([sampleFile.text(), fcFile.text()]);
-        const featureCatalogue = parseFeatureCatalogue(fcText);
-        if (!featureCatalogue.size) throw new Error('FC에서 S100_FC_FeatureType을 찾지 못했습니다.');
-        const pc = await parsePortrayalZip(pcZipFile);
-
-        const results = parseSampleFeatures(sampleText, featureCatalogue, pc);
-        let extent = ol.extent.createEmpty();
-        let svgApplied = 0, fallback = 0;
-
-        results.forEach(r => {
-          vectorSource.addFeature(r.olFeature);
-          ol.extent.extend(extent, r.olFeature.getGeometry().getExtent());
-          const pointLike = r.meta.geometryType === 'Point' || r.meta.geometryType === 'MultiPoint';
-          if (pointLike) {
-            if (r.meta.portrayal.svgUrl) svgApplied++; else fallback++;
+      for(const e of model.enumerations){
+        const sa = sub(wrap, "S100FC", "S100_FC_SimpleAttribute");
+        addItemFields(sa, e.name, e.fcCode, e.definition);
+        sub(sa, "S100FC", "valueType", "enumeration");
+        if(e.values && e.values.length){
+          const lvWrap = sub(sa, "S100FC", "listedValues");
+          const seenCodes = new Set(), seenLabels = new Set();
+          for(const v of e.values){
+            if(seenCodes.has(v.code) || seenLabels.has(v.label)){
+              warnings.push(`Duplicate enumeration label/code in '${e.name}' skipped: ${v.label} / ${v.code}`);
+              continue;
+            }
+            seenCodes.add(v.code); seenLabels.add(v.label);
+            const lv = sub(lvWrap, "S100FC", "listedValue");
+            sub(lv, "S100FC", "label", v.label);
+            sub(lv, "S100FC", "definition", definitionOrPlaceholder(v.definition));
+            sub(lv, "S100FC", "code", v.code);
           }
-        });
-
-        document.getElementById('fcCount').textContent = featureCatalogue.size;
-        document.getElementById('pcSymbolCount').textContent = pc.symbolFiles.size;
-        document.getElementById('featureCount').textContent = results.length;
-        document.getElementById('svgAppliedCount').textContent = svgApplied;
-        document.getElementById('fallbackCount').textContent = fallback;
-        document.getElementById('stats').hidden = false;
-
-        renderMapping(results);
-        renderFeatureList(results); // 피처 리스트 패널 업데이트
-
-        if (!ol.extent.isEmpty(extent)) {
-          map.getView().fit(extent, { padding: [50, 50, 50, 50], duration: 500 });
-          setStatus('완료', 'ok');
         } else {
-          throw new Error('유효한 공간 데이터가 없습니다.');
+          warnings.push(`Enumeration '${e.name}' has no values; XML will not satisfy enumeration semantics until values are supplied.`);
         }
-      } catch (error) {
-        setStatus(error.message, 'error');
-      } finally {
-        button.disabled = false;
       }
     }
-  </script>
+
+    if(model.complexAttributeTypes.length){
+      const wrap = sub(root, "S100FC", "S100_FC_ComplexAttributes");
+      for(const c of model.complexAttributeTypes){
+        const ca = sub(wrap, "S100FC", "S100_FC_ComplexAttribute");
+        addItemFields(ca, c.name, c.fcCode, c.definition);
+        const seenRefs = new Set();
+        if(!c.attributes.length){
+          warnings.push(`ComplexAttribute '${c.name}' has no sub-attributes; XSD requires at least one subAttributeBinding.`);
+        }
+        for(const a of c.attributes){
+          addAttributeBinding(ca, "subAttributeBinding", a, seenRefs, warnings, c.name, enumValuesByCode);
+        }
+      }
+    }
+
+    if(model.featureTypes.length){
+      const wrap = sub(root, "S100FC", "S100_FC_FeatureTypes");
+      for(const f of model.featureTypes){
+        const ft = sub(wrap, "S100FC", "S100_FC_FeatureType", undefined, {isAbstract:"false"});
+        addItemFields(ft, f.name, f.fcCode, f.definition);
+        const seenRefs = new Set();
+        for(const a of f.attributes){
+          addAttributeBinding(ft, "attributeBinding", a, seenRefs, warnings, f.name, enumValuesByCode);
+        }
+        sub(ft, "S100FC", "featureUseType", meta.featureUseType || "geographic");
+        sub(ft, "S100FC", "permittedPrimitives", meta.permittedPrimitive || "noGeometry");
+      }
+    }
+    if(model.featureTypes.length){
+      warnings.push("FeatureType featureUseType/permittedPrimitives are not inferred from QEA in this MVP; defaults geographic/noGeometry were written.");
+    }
+
+    return root;
+  }
+
+  function escAttr(s){
+    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+  function escText(s){
+    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  }
+  function serialize(e, depth){
+    const pad = "  ".repeat(depth);
+    const attrs = Object.entries(e.attribs).map(([k,v])=>` ${k}="${escAttr(v)}"`).join("");
+    if(e.text !== undefined){
+      return `${pad}<${e.tag}${attrs}>${escText(e.text)}</${e.tag}>`;
+    }
+    if(e.children.length === 0){
+      return `${pad}<${e.tag}${attrs}/>`;
+    }
+    const lines = [`${pad}<${e.tag}${attrs}>`];
+    for(const c of e.children) lines.push(serialize(c, depth+1));
+    lines.push(`${pad}</${e.tag}>`);
+    return lines.join("\n");
+  }
+  function toXmlString(root){
+    return `<?xml version="1.0" encoding="UTF-8"?>\n` + serialize(root, 0) + "\n";
+  }
+
+  // ---------------------------------------------------------------------
+  // UI wiring
+  // ---------------------------------------------------------------------
+  const dropEl = document.getElementById("drop");
+  const fileInput = document.getElementById("fileInput");
+  const filenameEl = document.getElementById("filename");
+  const runBtn = document.getElementById("runBtn");
+  const resetBtn = document.getElementById("resetBtn");
+  const statusEl = document.getElementById("status");
+  const resultsEl = document.getElementById("results");
+
+  let selectedFile = null;
+  let SQLmod = null;
+  let latestJsonBlobUrl = null;
+  let latestXmlBlobUrl = null;
+
+  function setStatus(msg, isErr, spinning){
+    statusEl.innerHTML = "";
+    if(msg){
+      const dot = document.createElement("span");
+      dot.className = "dot" + (spinning ? " spin" : "");
+      statusEl.appendChild(dot);
+      const span = document.createElement("span");
+      span.textContent = msg;
+      statusEl.appendChild(span);
+    }
+    statusEl.classList.toggle("err", !!isErr);
+  }
+
+  fileInput.addEventListener("change", () => {
+    if(fileInput.files && fileInput.files[0]){
+      selectedFile = fileInput.files[0];
+      filenameEl.textContent = "선택됨: " + selectedFile.name;
+      filenameEl.classList.add("show");
+      runBtn.disabled = false;
+      setStatus("");
+    }
+  });
+
+  ["dragover","dragenter"].forEach(evt => {
+    dropEl.addEventListener(evt, (e) => { e.preventDefault(); dropEl.classList.add("drag"); });
+  });
+  ["dragleave","drop"].forEach(evt => {
+    dropEl.addEventListener(evt, (e) => { e.preventDefault(); dropEl.classList.remove("drag"); });
+  });
+  dropEl.addEventListener("drop", (e) => {
+    if(e.dataTransfer.files && e.dataTransfer.files[0]){
+      fileInput.files = e.dataTransfer.files;
+      fileInput.dispatchEvent(new Event("change"));
+    }
+  });
+
+  async function ensureSql(){
+    if(SQLmod) return SQLmod;
+    SQLmod = await initSqlJs({
+      locateFile: f => `https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/${f}`
+    });
+    return SQLmod;
+  }
+
+  function renderResults(model, xmlString){
+    document.getElementById("statFeature").textContent = model.featureTypes.length;
+    document.getElementById("statComplex").textContent = model.complexAttributeTypes.length;
+    document.getElementById("statEnum").textContent = model.enumerations.length;
+    document.getElementById("statWarn").textContent = model.warnings.length;
+
+    const warnList = document.getElementById("warnList");
+    warnList.innerHTML = "";
+    if(model.warnings.length === 0){
+      warnList.classList.add("empty");
+      const li = document.createElement("li");
+      li.textContent = "경고 없음";
+      li.style.borderLeft = "none";
+      li.style.background = "transparent";
+      warnList.appendChild(li);
+    } else {
+      warnList.classList.remove("empty");
+      for(const w of model.warnings){
+        const li = document.createElement("li");
+        li.textContent = w;
+        warnList.appendChild(li);
+      }
+    }
+
+    const jsonStr = JSON.stringify(model, null, 2);
+    document.getElementById("jsonPreview").textContent = jsonStr;
+    document.getElementById("xmlPreview").textContent = xmlString;
+
+    if(latestJsonBlobUrl) URL.revokeObjectURL(latestJsonBlobUrl);
+    if(latestXmlBlobUrl) URL.revokeObjectURL(latestXmlBlobUrl);
+    latestJsonBlobUrl = URL.createObjectURL(new Blob([jsonStr], {type:"application/json"}));
+    latestXmlBlobUrl = URL.createObjectURL(new Blob([xmlString], {type:"application/xml"}));
+
+    resultsEl.classList.add("show");
+  }
+
+  function downloadUrl(url, filename){
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
+  document.getElementById("dlJson").addEventListener("click", () => {
+    if(latestJsonBlobUrl) downloadUrl(latestJsonBlobUrl, "model.json");
+  });
+  document.getElementById("dlXml").addEventListener("click", () => {
+    if(latestXmlBlobUrl) downloadUrl(latestXmlBlobUrl, "feature_catalogue_draft.xml");
+  });
+
+  document.querySelectorAll(".tab").forEach(tab => {
+    tab.addEventListener("click", () => {
+      document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+      document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+      tab.classList.add("active");
+      document.getElementById("panel-" + tab.dataset.tab).classList.add("active");
+    });
+  });
+
+  resetBtn.addEventListener("click", () => {
+    selectedFile = null;
+    fileInput.value = "";
+    filenameEl.classList.remove("show");
+    runBtn.disabled = true;
+    resetBtn.style.display = "none";
+    resultsEl.classList.remove("show");
+    setStatus("");
+  });
+
+  runBtn.addEventListener("click", async () => {
+    if(!selectedFile) return;
+    runBtn.disabled = true;
+    setStatus("SQLite 엔진 로딩 중...", false, true);
+    try{
+      const SQL = await ensureSql();
+      setStatus("QEA 파일 읽는 중...", false, true);
+      const buf = await selectedFile.arrayBuffer();
+      const db = new SQL.Database(new Uint8Array(buf));
+
+      setStatus("t_object / t_attribute 파싱 중...", false, true);
+      const {objects, attrsByObject} = loadQea(db);
+      db.close();
+
+      setStatus("모델 정규화 중...", false, true);
+      const model = normalizeModel(objects, attrsByObject);
+
+      setStatus("FC XML 생성 중...", false, true);
+      const root = buildFcXml(model, {});
+      const xmlString = toXmlString(root);
+
+      renderResults(model, xmlString);
+      setStatus(`완료 — FeatureType ${model.featureTypes.length}개, 경고 ${model.warnings.length}건`, false, false);
+      resetBtn.style.display = "inline-block";
+    } catch(err){
+      console.error(err);
+      setStatus("오류: " + (err && err.message ? err.message : String(err)), true, false);
+      resultsEl.classList.remove("show");
+    } finally {
+      runBtn.disabled = false;
+    }
+  });
+})();
+</script>
 </body>
 </html>
